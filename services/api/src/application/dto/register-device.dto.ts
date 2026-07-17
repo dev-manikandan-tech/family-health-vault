@@ -1,10 +1,13 @@
-import { IsOptional, IsString } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class RegisterDeviceDto {
-  @IsOptional()
+  @ApiProperty()
   @IsString()
-  deviceId?: string;
+  @IsNotEmpty()
+  deviceId: string;
 
+  @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   deviceName?: string;

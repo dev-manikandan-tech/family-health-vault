@@ -1,18 +1,27 @@
-import { IsString, IsBoolean } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class UserProfileDto {
-  @IsString()
+  @ApiProperty()
   id: string;
 
-  @IsString()
-  email: string;
+  @ApiPropertyOptional()
+  email?: string;
 
-  @IsString()
+  @ApiPropertyOptional()
+  phone?: string;
+
+  @ApiProperty()
   authProvider: string;
 
-  @IsBoolean()
+  @ApiProperty()
   emailVerified: boolean;
 
-  @IsBoolean()
+  @ApiProperty()
+  phoneVerified: boolean;
+
+  @ApiProperty()
   mfaEnabled: boolean;
+
+  @ApiProperty()
+  createdAt: Date;
 }

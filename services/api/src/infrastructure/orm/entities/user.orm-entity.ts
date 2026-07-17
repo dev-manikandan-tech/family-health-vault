@@ -5,18 +5,20 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   DeleteDateColumn,
+  Index,
 } from 'typeorm';
 
 @Entity('users')
+@Index(['email'])
 export class UserOrmEntity {
-  @PrimaryColumn('uuid')
+  @PrimaryColumn()
   id: string;
 
-  @Column({ unique: true })
-  email: string;
+  @Column({ nullable: true })
+  email?: string;
 
-  @Column({ nullable: true, name: 'password_hash' })
-  passwordHash?: string;
+  @Column({ nullable: true })
+  phone?: string;
 
   @Column({ name: 'auth_provider' })
   authProvider: string;
@@ -27,8 +29,14 @@ export class UserOrmEntity {
   @Column({ default: false, name: 'email_verified' })
   emailVerified: boolean;
 
+  @Column({ default: false, name: 'phone_verified' })
+  phoneVerified: boolean;
+
   @Column({ default: false, name: 'mfa_enabled' })
   mfaEnabled: boolean;
+
+  @Column({ nullable: true, name: 'deletion_requested_at' })
+  deletionRequestedAt?: Date;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

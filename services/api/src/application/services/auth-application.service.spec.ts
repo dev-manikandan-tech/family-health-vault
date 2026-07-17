@@ -1,35 +1,19 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AuthApplicationService, DeviceInfo } from './auth-application.service';
 import { User } from '../../domain/entities/user.entity';
-import { RefreshToken } from '../../domain/entities/refresh-token.entity';
 import { DeviceSession } from '../../domain/entities/device-session.entity';
 import { IUserRepository } from '../../domain/repositories/user.repository.interface';
-import { IRefreshTokenRepository } from '../../domain/repositories/refresh-token.repository.interface';
 import { IDeviceSessionRepository } from '../../domain/repositories/device-session.repository.interface';
-import { IPasswordHasher } from '../../domain/services/password-hasher.interface';
-import { ITokenService } from '../../domain/services/token-service.interface';
-import { IIdentityProvider } from '../../domain/services/identity-provider.interface';
-import { IOtpService } from '../../domain/services/otp-service.interface';
-import { IPasswordResetService } from '../../domain/services/password-reset-service.interface';
-import { IEmailSender } from '../../domain/services/email-sender.interface';
-import { AuthError, AuthErrorCode } from '../../domain/errors/auth.error';
+import { IAuditLogRepository } from '../../domain/repositories/audit-log.repository.interface';
+import { ISupabaseAuthClient } from '../../domain/services/supabase-auth-client.interface';
 import {
   USER_REPOSITORY,
-  REFRESH_TOKEN_REPOSITORY,
   DEVICE_SESSION_REPOSITORY,
-  PASSWORD_HASHER,
-  TOKEN_SERVICE,
-  IDENTITY_PROVIDER,
-  OTP_SERVICE,
-  PASSWORD_RESET_SERVICE,
-  EMAIL_SENDER,
+  AUDIT_LOG_REPOSITORY,
+  SUPABASE_AUTH_CLIENT,
+  AUDIT_SERVICE,
 } from '../../domain/constants/injection-tokens';
-import {
-  SignUpDto,
-  SignInDto,
-  RefreshTokenDto,
-  ResetPasswordDto,
-} from '../dto';
+import { AuditService } from '../../infrastructure/audit/audit.service';
 
 class InMemoryUserRepository implements IUserRepository {
   private users: User[] = [];
@@ -39,7 +23,7 @@ class InMemoryUserRepository implements IUserRepository {
   }
 
   async findByEmail(email: string): Promise<User | null> {
-    return this.users.find((u) => u.email === email.toLowerCase()) || null;
+    return this.users.find((u) => u.email === email?.toLowerCase()) || null;
   }
 
   async save(user: User): Promise<User> {
@@ -53,38 +37,26 @@ class InMemoryUserRepository implements IUserRepository {
   }
 }
 
-class InMemoryRefreshTokenRepository implements IRefreshTokenRepository {
-  private tokens: RefreshToken[] = [];
-
-  async findByTokenHash(tokenHash: string): Promise<RefreshToken | null> {
-    return (
-      this.tokens.find(
-        (t) => t.tokenHash === tokenHash && !t.isRevoked() && !t.isExpired(),
-      ) || null
-    );
-  }
-
-  async save(token: RefreshToken): Promise<RefreshToken> {
-    const index = this.tokens.findIndex((t) => t.id === token.id);
-    if (index >= 0) {
-      this.tokens[index] = token;
-    } else {
-      this.tokens.push(token);
-    }
-    return token;
-  }
-
-  async revoke(id: string): Promise<void> {
-    const token = this.tokens.find((t) => t.id === id);
-    if (token) token.revoke();
-  }
-}
-
 class InMemoryDeviceSessionRepository implements IDeviceSessionRepository {
   private sessions: DeviceSession[] = [];
 
   async findById(id: string): Promise<DeviceSession | null> {
     return this.sessions.find((s) => s.id === id) || null;
+  }
+
+  async findByUserId(userId: string): Promise<DeviceSession[]> {
+    return this.sessions.filter((s) => s.userId === userId);
+  }
+
+  async findByUserAndDeviceId(
+    userId: string,
+    deviceId?: string,
+  ): Promise<DeviceSession | null> {
+    return (
+      this.sessions.find(
+        (s) => s.userId === userId && s.deviceId === deviceId,
+      ) || null
+    );
   }
 
   async save(session: DeviceSession): Promise<DeviceSession> {
@@ -96,74 +68,89 @@ class InMemoryDeviceSessionRepository implements IDeviceSessionRepository {
     }
     return session;
   }
+
+  async delete(id: string): Promise<void> {
+    this.sessions = this.sessions.filter((s) => s.id !== id);
+  }
+
+  async deleteByUserId(userId: string): Promise<void> {
+    this.sessions = this.sessions.filter((s) => s.userId !== userId);
+  }
+}
+
+class InMemoryAuditLogRepository implements IAuditLogRepository {
+  private logs: any[] = [];
+  async save(log: any): Promise<any> {
+    this.logs.push(log);
+    return log;
+  }
+}
+
+class FakeSupabaseAuthClient implements ISupabaseAuthClient {
+  private tokens: Map<string, string> = new Map();
+  private users: Map<string, { id: string; email?: string; phone?: string }> =
+    new Map();
+
+  signToken(payload: { sub: string; email?: string; phone?: string }): string {
+    const token = `token-${payload.sub}`;
+    this.tokens.set(token, payload.sub);
+    this.users.set(payload.sub, {
+      id: payload.sub,
+      email: payload.email,
+      phone: payload.phone,
+    });
+    return token;
+  }
+
+  async verifyAccessToken(token: string) {
+    const sub = this.tokens.get(token);
+    if (!sub) throw new Error('invalid');
+    const user = this.users.get(sub)!;
+    return { sub: user.id, email: user.email, phone: user.phone };
+  }
+
+  async sendPhoneOtp(): Promise<void> {}
+
+  async verifyPhoneOtp(
+    phone: string,
+    code: string,
+  ): Promise<{ userId: string; phone: string }> {
+    if (code !== '123456') throw new Error('invalid');
+    const userId = `phone-${phone}`;
+    this.users.set(userId, { id: userId, phone });
+    return { userId, phone };
+  }
+
+  async getUser(userId: string) {
+    return this.users.get(userId) ?? null;
+  }
+
+  async deleteUser(): Promise<void> {}
 }
 
 describe('AuthApplicationService', () => {
   let service: AuthApplicationService;
   let userRepo: InMemoryUserRepository;
-  let refreshTokenRepo: InMemoryRefreshTokenRepository;
   let deviceSessionRepo: InMemoryDeviceSessionRepository;
-  let tokenService: ITokenService;
-  let passwordHasher: IPasswordHasher;
+  let supabase: FakeSupabaseAuthClient;
 
   beforeEach(async () => {
     userRepo = new InMemoryUserRepository();
-    refreshTokenRepo = new InMemoryRefreshTokenRepository();
     deviceSessionRepo = new InMemoryDeviceSessionRepository();
-
-    passwordHasher = {
-      hash: jest.fn(async (password: string) => `hashed:${password}`),
-      compare: jest.fn(
-        async (password: string, hash: string) => hash === `hashed:${password}`,
-      ),
-    };
-
-    tokenService = {
-      generateAccessToken: jest.fn(() => 'access-token'),
-      verifyAccessToken: jest.fn(),
-      generateRefreshToken: jest.fn(() => 'raw-refresh-token'),
-      hashRefreshToken: jest.fn((token: string) => `hash:${token}`),
-      getAccessTokenExpiresInSeconds: jest.fn(() => 900),
-      getRefreshTokenExpiresAt: jest.fn(
-        () => new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-      ),
-    };
-
-    const identityProvider: IIdentityProvider = {
-      verifySocialToken: jest.fn(async (provider) => ({
-        provider,
-        providerUserId: 'social-id',
-        email: 'social@example.com',
-      })),
-    };
-
-    const otpService: IOtpService = {
-      generateCode: jest.fn(async () => '123456'),
-      verifyCode: jest.fn(async () => true),
-    };
-
-    const passwordResetService: IPasswordResetService = {
-      generateToken: jest.fn(async () => 'reset-token'),
-      validateToken: jest.fn(async () => 'user@example.com'),
-    };
-
-    const emailSender: IEmailSender = {
-      sendOtp: jest.fn(),
-      sendPasswordReset: jest.fn(),
-    };
+    supabase = new FakeSupabaseAuthClient();
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthApplicationService,
+        AuditService,
         { provide: USER_REPOSITORY, useValue: userRepo },
-        { provide: REFRESH_TOKEN_REPOSITORY, useValue: refreshTokenRepo },
         { provide: DEVICE_SESSION_REPOSITORY, useValue: deviceSessionRepo },
-        { provide: PASSWORD_HASHER, useValue: passwordHasher },
-        { provide: TOKEN_SERVICE, useValue: tokenService },
-        { provide: IDENTITY_PROVIDER, useValue: identityProvider },
-        { provide: OTP_SERVICE, useValue: otpService },
-        { provide: PASSWORD_RESET_SERVICE, useValue: passwordResetService },
-        { provide: EMAIL_SENDER, useValue: emailSender },
+        {
+          provide: AUDIT_LOG_REPOSITORY,
+          useValue: new InMemoryAuditLogRepository(),
+        },
+        { provide: AUDIT_SERVICE, useClass: AuditService },
+        { provide: SUPABASE_AUTH_CLIENT, useValue: supabase },
       ],
     }).compile();
 
@@ -172,111 +159,121 @@ describe('AuthApplicationService', () => {
 
   const deviceInfo: DeviceInfo = {};
 
-  describe('signUp', () => {
-    it('creates a user and returns tokens', async () => {
-      const dto: SignUpDto = {
+  describe('syncUser', () => {
+    it('creates a local user on first token', async () => {
+      const token = supabase.signToken({
+        sub: 'auth0|abc',
         email: 'user@example.com',
-        password: 'password123',
-      };
-      const result = await service.signUp(dto, deviceInfo);
-
-      expect(result.accessToken).toBe('access-token');
-      expect(result.refreshToken).toBe('raw-refresh-token');
-      expect(result.user.email).toBe('user@example.com');
-      expect(result.user.authProvider).toBe('email');
-
-      const saved = await userRepo.findByEmail('user@example.com');
-      expect(saved).toBeDefined();
-      expect(saved?.email).toBe('user@example.com');
-    });
-
-    it('throws when email already exists', async () => {
-      const dto: SignUpDto = {
-        email: 'user@example.com',
-        password: 'password123',
-      };
-      await service.signUp(dto, deviceInfo);
-
-      await expect(service.signUp(dto, deviceInfo)).rejects.toThrow(AuthError);
-      await expect(service.signUp(dto, deviceInfo)).rejects.toMatchObject({
-        code: AuthErrorCode.USER_ALREADY_EXISTS,
       });
+      const payload = await supabase.verifyAccessToken(token);
+      const user = await service.syncUser(payload);
+
+      expect(user.email).toBe('user@example.com');
+      expect(await userRepo.findById(user.id)).toBeDefined();
+    });
+
+    it('restores a soft-deleted user on re-login', async () => {
+      const user = new User({
+        id: 'auth0|abc',
+        email: 'user@example.com',
+        authProvider: 'email',
+        deletedAt: new Date(),
+      });
+      await userRepo.save(user);
+
+      const token = supabase.signToken({
+        sub: 'auth0|abc',
+        email: 'user@example.com',
+      });
+      const payload = await supabase.verifyAccessToken(token);
+      const synced = await service.syncUser(payload);
+
+      expect(synced.deletedAt).toBeUndefined();
     });
   });
 
-  describe('signIn', () => {
-    it('returns tokens for valid credentials', async () => {
-      const signupDto: SignUpDto = {
+  describe('account deletion', () => {
+    it('soft deletes user and sessions', async () => {
+      const user = new User({
+        id: 'auth0|abc',
         email: 'user@example.com',
-        password: 'password123',
-      };
-      await service.signUp(signupDto, deviceInfo);
-
-      const signinDto: SignInDto = {
-        email: 'user@example.com',
-        password: 'password123',
-      };
-      const result = await service.signIn(signinDto, deviceInfo);
-
-      expect(result.accessToken).toBe('access-token');
-      expect(result.refreshToken).toBe('raw-refresh-token');
-    });
-
-    it('throws for invalid credentials', async () => {
-      const signupDto: SignUpDto = {
-        email: 'user@example.com',
-        password: 'password123',
-      };
-      await service.signUp(signupDto, deviceInfo);
-
-      const signinDto: SignInDto = {
-        email: 'user@example.com',
-        password: 'wrong',
-      };
-      await expect(service.signIn(signinDto, deviceInfo)).rejects.toThrow(
-        AuthError,
+        authProvider: 'email',
+      });
+      await userRepo.save(user);
+      await deviceSessionRepo.save(
+        new DeviceSession({ userId: user.id, deviceId: 'd1' }),
       );
+
+      await service.requestAccountDeletion(user.id, deviceInfo);
+
+      const deleted = await userRepo.findById(user.id);
+      expect(deleted?.deletedAt).toBeDefined();
+      expect(await deviceSessionRepo.findByUserId(user.id)).toHaveLength(0);
+    });
+
+    it('cancels deletion', async () => {
+      const user = new User({
+        id: 'auth0|abc',
+        email: 'user@example.com',
+        authProvider: 'email',
+        deletedAt: new Date(),
+        deletionRequestedAt: new Date(),
+      });
+      await userRepo.save(user);
+
+      const result = await service.cancelAccountDeletion(user.id, deviceInfo);
+
+      expect(result.deletedAt).toBeUndefined();
+      expect(result.id).toBe(user.id);
     });
   });
 
-  describe('refreshToken', () => {
-    it('rotates refresh token and returns new tokens', async () => {
-      const signupDto: SignUpDto = {
-        email: 'user@example.com',
-        password: 'password123',
-      };
-      const signedUp = await service.signUp(signupDto, deviceInfo);
-
-      const dto: RefreshTokenDto = { refreshToken: signedUp.refreshToken };
-      const result = await service.refreshToken(dto, deviceInfo);
-
-      expect(result.accessToken).toBe('access-token');
-      expect(result.refreshToken).toBe('raw-refresh-token');
-    });
-
-    it('throws for invalid refresh token', async () => {
-      const dto: RefreshTokenDto = { refreshToken: 'invalid' };
-      await expect(service.refreshToken(dto, deviceInfo)).rejects.toThrow(
-        AuthError,
+  describe('phone OTP', () => {
+    it('creates user on verified phone OTP', async () => {
+      const result = await service.verifyPhoneOtp(
+        { phone: '+15550001111', code: '123456' },
+        deviceInfo,
       );
+
+      expect(result.phone).toBe('+15550001111');
+      expect(result.authProvider).toBe('phone');
     });
   });
 
-  describe('password reset', () => {
-    it('resets password and returns tokens', async () => {
-      const signupDto: SignUpDto = {
+  describe('device sessions', () => {
+    it('registers and lists device sessions', async () => {
+      const user = new User({
+        id: 'auth0|abc',
         email: 'user@example.com',
-        password: 'password123',
-      };
-      await service.signUp(signupDto, deviceInfo);
+        authProvider: 'email',
+      });
+      await userRepo.save(user);
 
-      const dto: ResetPasswordDto = {
-        token: 'reset-token',
-        newPassword: 'newpassword123',
-      };
-      const result = await service.resetPassword(dto, deviceInfo);
+      await service.registerDevice(
+        user.id,
+        { deviceId: 'd1', deviceName: 'iPhone' },
+        { ipAddress: '127.0.0.1' },
+      );
 
-      expect(result.user.email).toBe('user@example.com');
+      const sessions = await service.listDevices(user.id);
+      expect(sessions).toHaveLength(1);
+      expect(sessions[0].deviceId).toBe('d1');
+    });
+
+    it('revokes a device session', async () => {
+      const user = new User({
+        id: 'auth0|abc',
+        email: 'user@example.com',
+        authProvider: 'email',
+      });
+      await userRepo.save(user);
+      const session = await deviceSessionRepo.save(
+        new DeviceSession({ userId: user.id, deviceId: 'd1' }),
+      );
+
+      await service.revokeDevice(user.id, session.id, deviceInfo);
+
+      expect(await deviceSessionRepo.findById(session.id)).toBeNull();
     });
   });
 });

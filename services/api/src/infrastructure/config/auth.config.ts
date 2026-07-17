@@ -1,26 +1,26 @@
 import { registerAs } from '@nestjs/config';
 
-function getJwtSecret(): string {
-  const secret = process.env.JWT_SECRET;
-  if (!secret && process.env.NODE_ENV === 'production') {
+export const authConfig = registerAs('auth', () => {
+  const supabaseUrl = process.env.SUPABASE_URL;
+  const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
+  const supabaseJwksUrl = process.env.SUPABASE_JWKS_URL;
+
+  if (
+    process.env.NODE_ENV === 'production' &&
+    (!supabaseUrl || !supabaseServiceRoleKey)
+  ) {
     throw new Error(
-      'JWT_SECRET environment variable is required in production',
+      'SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required in production',
     );
   }
-  return secret || 'dev-secret-not-for-production';
-}
 
-export const authConfig = registerAs('auth', () => ({
-  jwtSecret: getJwtSecret(),
-  jwtExpiresInSeconds: parseInt(
-    process.env.JWT_EXPIRES_IN_SECONDS || '900',
-    10,
-  ),
-  refreshTokenExpiresInDays: parseInt(
-    process.env.REFRESH_TOKEN_EXPIRES_IN_DAYS || '7',
-    10,
-  ),
-  googleClientId: process.env.GOOGLE_CLIENT_ID,
-  appleClientId: process.env.APPLE_CLIENT_ID,
-  nodeEnv: process.env.NODE_ENV || 'development',
-}));
+  return {
+    supabaseUrl,
+    supabaseServiceRoleKey,
+    supabaseAnonKey,
+    supabaseJwksUrl,
+    jwtSecret: process.env.JWT_SECRET || 'dev-secret-not-for-production',
+    nodeEnv: process.env.NODE_ENV || 'development',
+  };
+});

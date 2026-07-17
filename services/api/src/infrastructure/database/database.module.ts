@@ -3,8 +3,8 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule, TypeOrmModuleOptions } from '@nestjs/typeorm';
 import { databaseConfig } from '../config/database.config';
 import { UserOrmEntity } from '../orm/entities/user.orm-entity';
-import { RefreshTokenOrmEntity } from '../orm/entities/refresh-token.orm-entity';
 import { DeviceSessionOrmEntity } from '../orm/entities/device-session.orm-entity';
+import { AuditLogOrmEntity } from '../orm/entities/audit-log.orm-entity';
 
 @Module({
   imports: [
@@ -19,8 +19,8 @@ import { DeviceSessionOrmEntity } from '../orm/entities/device-session.orm-entit
     }),
     TypeOrmModule.forFeature([
       UserOrmEntity,
-      RefreshTokenOrmEntity,
       DeviceSessionOrmEntity,
+      AuditLogOrmEntity,
     ]),
   ],
   exports: [TypeOrmModule],

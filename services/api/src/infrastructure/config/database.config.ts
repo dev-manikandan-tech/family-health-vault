@@ -1,8 +1,8 @@
 import { registerAs } from '@nestjs/config';
 import { TypeOrmModuleOptions } from '@nestjs/typeorm';
 import { UserOrmEntity } from '../orm/entities/user.orm-entity';
-import { RefreshTokenOrmEntity } from '../orm/entities/refresh-token.orm-entity';
 import { DeviceSessionOrmEntity } from '../orm/entities/device-session.orm-entity';
+import { AuditLogOrmEntity } from '../orm/entities/audit-log.orm-entity';
 
 export const databaseConfig = registerAs(
   'database',
@@ -10,7 +10,7 @@ export const databaseConfig = registerAs(
     const dbType = process.env.DB_TYPE || 'postgres';
     const base: TypeOrmModuleOptions = {
       type: dbType as any,
-      entities: [UserOrmEntity, RefreshTokenOrmEntity, DeviceSessionOrmEntity],
+      entities: [UserOrmEntity, DeviceSessionOrmEntity, AuditLogOrmEntity],
       synchronize: process.env.NODE_ENV !== 'production',
       dropSchema: process.env.NODE_ENV === 'test',
       logging: process.env.DB_LOGGING === 'true',

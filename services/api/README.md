@@ -4,12 +4,12 @@ NestJS API service for the Family Health Vault platform.
 
 ## Features
 
-- Email sign-up / sign-in
-- Social login (Google, Apple) via pluggable identity providers
-- Email OTP sign-up / sign-in
-- JWT access tokens and secure refresh token rotation
-- Device session tracking
-- Password reset
+- Supabase Auth as the identity provider (JWT verification via JWKS)
+- Phone number OTP via Supabase Auth
+- Local user sync on first authenticated request
+- Device session tracking and revocation
+- Account deletion with soft-delete and restore on re-login
+- Audit logging for auth events
 - Redis-backed rate limiting with in-memory fallback
 - Row-level security (RLS) context for PostgreSQL
 - Swagger API documentation
@@ -23,7 +23,7 @@ The service follows Clean Architecture:
 
 - `domain/` — entities, repository interfaces, and domain services
 - `application/` — DTOs and use-case/application service
-- `infrastructure/` — TypeORM, JWT, password hashing, identity providers, rate limiting, RLS, health checks
+- `infrastructure/` — TypeORM, Supabase Auth client, rate limiting, RLS, health checks, audit
 - `interface/` — HTTP controllers, guards, filters, and decorators
 
 ## Local Development
@@ -74,16 +74,15 @@ npm run lint
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `JWT_SECRET` | JWT signing secret | `change-me-in-production` |
-| `JWT_EXPIRES_IN_SECONDS` | Access token TTL in seconds | `900` |
-| `REFRESH_TOKEN_EXPIRES_IN_DAYS` | Refresh token TTL in days | `7` |
+| `SUPABASE_URL` | Supabase project URL | — |
+| `SUPABASE_ANON_KEY` | Supabase anon/public key (for JWKS requests) | — |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key (for admin actions) | — |
+| `JWT_SECRET` | Optional fallback JWT secret for local/fake auth | `change-me-in-production` |
 | `DB_TYPE` | `postgres` or `better-sqlite3` | `postgres` |
 | `DATABASE_URL` | Postgres connection string | — |
 | `DB_HOST` / `DB_PORT` / `DB_USERNAME` / `DB_PASSWORD` / `DB_NAME` | Postgres settings | — |
 | `DB_DATABASE` | SQLite database path | `:memory:` |
 | `REDIS_URL` | Redis connection URL | — |
-| `GOOGLE_CLIENT_ID` | Google OAuth client ID | — |
-| `APPLE_CLIENT_ID` | Apple Sign In client ID | — |
 | `RATE_LIMIT_POINTS` | Max requests per window | `100` |
 | `RATE_LIMIT_DURATION` | Rate limit window in seconds | `60` |
 
