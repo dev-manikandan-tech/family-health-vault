@@ -47,4 +47,4 @@ __pycache__/
 *.pyc
 
 # Misc
-*.local
+*.local*.sqlite

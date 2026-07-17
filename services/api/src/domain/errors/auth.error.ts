@@ -1,0 +1,24 @@
+export class AuthError extends Error {
+  constructor(
+    public readonly code: string,
+    message: string,
+  ) {
+    super(message);
+    this.name = 'AuthError';
+  }
+}
+
+export const AuthErrorCode = {
+  INVALID_CREDENTIALS: 'INVALID_CREDENTIALS',
+  USER_ALREADY_EXISTS: 'USER_ALREADY_EXISTS',
+  USER_NOT_FOUND: 'USER_NOT_FOUND',
+  INVALID_TOKEN: 'INVALID_TOKEN',
+  TOKEN_EXPIRED: 'TOKEN_EXPIRED',
+  TOKEN_REVOKED: 'TOKEN_REVOKED',
+  INVALID_OTP: 'INVALID_OTP',
+  OTP_EXPIRED: 'OTP_EXPIRED',
+  PASSWORD_TOO_WEAK: 'PASSWORD_TOO_WEAK',
+  ACCOUNT_DISABLED: 'ACCOUNT_DISABLED',
+  RATE_LIMITED: 'RATE_LIMITED',
+  INTERNAL_ERROR: 'INTERNAL_ERROR',
+} as const;
