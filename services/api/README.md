@@ -1,6 +1,6 @@
 # Family Health Vault - API Service
 
-NestJS authentication service for the Family Health Vault platform.
+NestJS API service for the Family Health Vault platform.
 
 ## Features
 
@@ -13,6 +13,9 @@ NestJS authentication service for the Family Health Vault platform.
 - Redis-backed rate limiting with in-memory fallback
 - Row-level security (RLS) context for PostgreSQL
 - Swagger API documentation
+- Health endpoints (`/health/live`, `/health/ready`)
+- RFC 7807 `application/problem+json` error responses
+- Request-ID propagation via `x-request-id` header
 
 ## Architecture
 
@@ -20,8 +23,52 @@ The service follows Clean Architecture:
 
 - `domain/` — entities, repository interfaces, and domain services
 - `application/` — DTOs and use-case/application service
-- `infrastructure/` — TypeORM, JWT, password hashing, identity providers, rate limiting, RLS
+- `infrastructure/` — TypeORM, JWT, password hashing, identity providers, rate limiting, RLS, health checks
 - `interface/` — HTTP controllers, guards, filters, and decorators
+
+## Local Development
+
+### 1. Start backing services
+
+From the repository root:
+
+```bash
+docker-compose up -d
+```
+
+This starts PostgreSQL (with `pgvector` and `pg_trgm`), Redis, MinIO, and Mailpit.
+
+### 2. Configure the API
+
+```bash
+cp services/api/.env.example services/api/.env
+# Edit services/api/.env if your docker-machine host is not localhost
+```
+
+### 3. Install and run the API
+
+```bash
+cd services/api
+npm install
+npm run build
+npm run start:dev
+```
+
+The API will be available at `http://localhost:3000`.
+
+- Swagger UI: `http://localhost:3000/api/docs`
+- Health (live): `http://localhost:3000/health/live`
+- Health (ready): `http://localhost:3000/health/ready`
+- Mailpit UI: `http://localhost:8025`
+- MinIO console: `http://localhost:9001` (default creds `minioadmin` / `minioadmin`)
+
+### 4. Run tests
+
+```bash
+npm run test
+npm run test:e2e
+npm run lint
+```
 
 ## Environment Variables
 
@@ -39,17 +86,6 @@ The service follows Clean Architecture:
 | `APPLE_CLIENT_ID` | Apple Sign In client ID | — |
 | `RATE_LIMIT_POINTS` | Max requests per window | `100` |
 | `RATE_LIMIT_DURATION` | Rate limit window in seconds | `60` |
-
-## Scripts
-
-```bash
-npm install
-npm run build
-npm run start:dev
-npm run test
-npm run test:e2e
-npm run lint
-```
 
 ## API Documentation
 

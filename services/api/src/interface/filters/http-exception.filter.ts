@@ -8,6 +8,31 @@ import {
 import { Request, Response } from 'express';
 import { AuthError } from '../../domain/errors/auth.error';
 
+interface ProblemJson {
+  type: string;
+  title: string;
+  status: number;
+  detail: string;
+  instance: string;
+  [key: string]: unknown;
+}
+
+function buildProblemJson(
+  status: number,
+  detail: string,
+  request: Request,
+  extra: Record<string, unknown> = {},
+): ProblemJson {
+  return {
+    type: `https://familyhealthvault.com/errors/${status}`,
+    title: HttpStatus[status] ?? 'Error',
+    status,
+    detail,
+    instance: request.url,
+    ...extra,
+  };
+}
+
 @Catch(AuthError)
 export class AuthExceptionFilter implements ExceptionFilter {
   catch(exception: AuthError, host: ArgumentsHost) {
@@ -26,23 +51,35 @@ export class AuthExceptionFilter implements ExceptionFilter {
         status = HttpStatus.UNAUTHORIZED;
         break;
       case 'USER_NOT_FOUND':
+      case 'FAMILY_NOT_FOUND':
+      case 'MEMBER_NOT_FOUND':
+      case 'INVITATION_NOT_FOUND':
         status = HttpStatus.NOT_FOUND;
         break;
       case 'USER_ALREADY_EXISTS':
+      case 'ALREADY_MEMBER':
+      case 'PENDING_INVITATION_EXISTS':
         status = HttpStatus.CONFLICT;
         break;
       case 'RATE_LIMITED':
         status = HttpStatus.TOO_MANY_REQUESTS;
         break;
+      case 'UNAUTHORIZED':
+      case 'INVALID_ROLE':
+      case 'INVALID_INVITATION':
+      case 'CANNOT_MODIFY_OWNER':
+      case 'CANNOT_REMOVE_SELF':
+      case 'CANNOT_REMOVE_OWNER':
+        status = HttpStatus.FORBIDDEN;
+        break;
     }
 
-    response.status(status).json({
-      statusCode: status,
-      error: exception.code,
-      message: exception.message,
+    const body = buildProblemJson(status, exception.message, request, {
+      errorCode: exception.code,
       timestamp: new Date().toISOString(),
-      path: request.url,
     });
+
+    response.status(status).contentType('application/problem+json').json(body);
   }
 }
 
@@ -55,11 +92,22 @@ export class GlobalHttpExceptionFilter implements ExceptionFilter {
     const status = exception.getStatus();
     const res = exception.getResponse();
 
-    response.status(status).json({
-      statusCode: status,
-      ...(typeof res === 'string' ? { message: res } : res),
-      timestamp: new Date().toISOString(),
-      path: request.url,
-    });
+    const detail =
+      typeof res === 'string'
+        ? res
+        : ((res as { message?: string | string[] }).message ??
+          'An error occurred');
+
+    const body = buildProblemJson(
+      status,
+      Array.isArray(detail) ? detail.join(', ') : detail,
+      request,
+      {
+        ...(typeof res === 'object' && res !== null ? res : {}),
+        timestamp: new Date().toISOString(),
+      },
+    );
+
+    response.status(status).contentType('application/problem+json').json(body);
   }
 }
