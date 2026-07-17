@@ -11,10 +11,10 @@ export class RefreshTokenOrmEntity {
   @Column({ name: 'token_hash' })
   tokenHash: string;
 
-  @Column({ type: 'datetime', name: 'expires_at' })
+  @Column({ name: 'expires_at' })
   expiresAt: Date;
 
-  @Column({ nullable: true, type: 'datetime', name: 'revoked_at' })
+  @Column({ nullable: true, name: 'revoked_at' })
   revokedAt?: Date;
 
   @CreateDateColumn({ name: 'created_at' })

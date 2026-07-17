@@ -1,7 +1,17 @@
 import { registerAs } from '@nestjs/config';
 
+function getJwtSecret(): string {
+  const secret = process.env.JWT_SECRET;
+  if (!secret && process.env.NODE_ENV === 'production') {
+    throw new Error(
+      'JWT_SECRET environment variable is required in production',
+    );
+  }
+  return secret || 'dev-secret-not-for-production';
+}
+
 export const authConfig = registerAs('auth', () => ({
-  jwtSecret: process.env.JWT_SECRET || 'change-me-in-production',
+  jwtSecret: getJwtSecret(),
   jwtExpiresInSeconds: parseInt(
     process.env.JWT_EXPIRES_IN_SECONDS || '900',
     10,

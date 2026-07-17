@@ -79,7 +79,7 @@ export class RlsContextService {
   }
 
   private escapeLiteral(value: string): string {
-    return value.replace(/'/g, "''");
+    return value.replace(/\\/g, '\\\\').replace(/'/g, "''");
   }
 
   private escapeIdentifier(value: string): string {

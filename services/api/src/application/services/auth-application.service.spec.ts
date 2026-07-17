@@ -123,6 +123,10 @@ describe('AuthApplicationService', () => {
       verifyAccessToken: jest.fn(),
       generateRefreshToken: jest.fn(() => 'raw-refresh-token'),
       hashRefreshToken: jest.fn((token: string) => `hash:${token}`),
+      getAccessTokenExpiresInSeconds: jest.fn(() => 900),
+      getRefreshTokenExpiresAt: jest.fn(
+        () => new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      ),
     };
 
     const identityProvider: IIdentityProvider = {

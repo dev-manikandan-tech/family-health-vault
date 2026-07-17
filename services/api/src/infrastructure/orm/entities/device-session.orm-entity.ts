@@ -23,7 +23,7 @@ export class DeviceSessionOrmEntity {
   @Column({ nullable: true, name: 'user_agent' })
   userAgent?: string;
 
-  @Column({ type: 'datetime', name: 'last_active_at' })
+  @Column({ name: 'last_active_at' })
   lastActiveAt: Date;
 
   @CreateDateColumn({ name: 'created_at' })

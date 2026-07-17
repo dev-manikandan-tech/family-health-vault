@@ -34,4 +34,14 @@ export class JwtTokenService implements ITokenService {
   hashRefreshToken(token: string): string {
     return createHash('sha256').update(token).digest('hex');
   }
+
+  getAccessTokenExpiresInSeconds(): number {
+    return this.configService.get<number>('auth.jwtExpiresInSeconds') ?? 900;
+  }
+
+  getRefreshTokenExpiresAt(): Date {
+    const days =
+      this.configService.get<number>('auth.refreshTokenExpiresInDays') ?? 7;
+    return new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+  }
 }

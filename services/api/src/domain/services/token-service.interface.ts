@@ -9,4 +9,6 @@ export interface ITokenService {
   verifyAccessToken(token: string): Promise<AccessTokenPayload>;
   generateRefreshToken(): string;
   hashRefreshToken(token: string): string;
+  getAccessTokenExpiresInSeconds(): number;
+  getRefreshTokenExpiresAt(): Date;
 }

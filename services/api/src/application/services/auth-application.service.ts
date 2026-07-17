@@ -125,19 +125,28 @@ export class AuthApplicationService {
       dto.provider,
       dto.idToken,
     );
-    let user = await this.userRepository.findByEmail(profile.email);
+    const user = await this.userRepository.findByEmail(profile.email);
 
-    if (!user) {
-      user = new User({
-        email: profile.email,
-        authProvider: dto.provider,
-        providerUserId: profile.providerUserId,
-        emailVerified: true,
-      });
-      await this.userRepository.save(user);
+    if (user && user.authProvider !== dto.provider) {
+      throw new AuthError(
+        AuthErrorCode.AUTH_PROVIDER_MISMATCH,
+        'This email is already associated with a different authentication method',
+      );
     }
 
-    return this.issueTokens(user, deviceInfo);
+    if (user) {
+      return this.issueTokens(user, deviceInfo);
+    }
+
+    const newUser = new User({
+      email: profile.email,
+      authProvider: dto.provider,
+      providerUserId: profile.providerUserId,
+      emailVerified: true,
+    });
+    await this.userRepository.save(newUser);
+
+    return this.issueTokens(newUser, deviceInfo);
   }
 
   async sendOtp(dto: SendOtpDto): Promise<{ sent: boolean }> {
@@ -284,7 +293,7 @@ export class AuthApplicationService {
     const refreshToken = new RefreshToken({
       userId: user.id,
       tokenHash,
-      expiresAt: this.getRefreshExpiry(),
+      expiresAt: this.tokenService.getRefreshTokenExpiresAt(),
     });
     await this.refreshTokenRepository.save(refreshToken);
 
@@ -301,17 +310,12 @@ export class AuthApplicationService {
     return {
       accessToken,
       refreshToken: rawRefreshToken,
-      expiresIn: 900,
+      expiresIn: this.tokenService.getAccessTokenExpiresInSeconds(),
       user: {
         id: user.id,
         email: user.email,
         authProvider: user.authProvider,
       },
     };
-  }
-
-  private getRefreshExpiry(): Date {
-    const expiresInDays = 7;
-    return new Date(Date.now() + expiresInDays * 24 * 60 * 60 * 1000);
   }
 }
