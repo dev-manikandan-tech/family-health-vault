@@ -1,15 +1,21 @@
-import { Entity, PrimaryColumn, Column, CreateDateColumn } from 'typeorm';
+import {
+  Entity,
+  PrimaryColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
+  Index,
+} from 'typeorm';
 
 @Entity('device_sessions')
+@Index(['userId'])
+@Index(['deviceId'])
 export class DeviceSessionOrmEntity {
   @PrimaryColumn('uuid')
   id: string;
 
-  @Column('uuid', { name: 'user_id' })
+  @Column({ name: 'user_id' })
   userId: string;
-
-  @Column('uuid', { name: 'refresh_token_id' })
-  refreshTokenId: string;
 
   @Column({ nullable: true, name: 'device_id' })
   deviceId?: string;
@@ -28,4 +34,7 @@ export class DeviceSessionOrmEntity {
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
+
+  @UpdateDateColumn({ name: 'updated_at' })
+  updatedAt: Date;
 }

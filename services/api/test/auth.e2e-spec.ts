@@ -1,36 +1,30 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
-import { EMAIL_SENDER } from '../src/domain/constants/injection-tokens';
-import { CapturingEmailSender } from './support/capturing-email.sender';
-import { FakeIdentityProvider } from '../src/infrastructure/identity-providers/fake.identity-provider';
+import { SUPABASE_AUTH_CLIENT } from '../src/domain/constants/injection-tokens';
+import { FakeSupabaseAuthClient } from './support/fake-supabase-auth.client';
 
 describe('AuthController (e2e)', () => {
   let app: INestApplication;
-  let emailSender: CapturingEmailSender;
-  let fakeIdentityProvider: FakeIdentityProvider;
+  let fakeSupabase: FakeSupabaseAuthClient;
 
   beforeAll(async () => {
     process.env.NODE_ENV = 'test';
     process.env.DB_TYPE = 'better-sqlite3';
     process.env.DB_DATABASE = ':memory:';
     process.env.JWT_SECRET = 'test-secret-not-for-production';
-    process.env.JWT_EXPIRES_IN_SECONDS = '900';
-    process.env.REFRESH_TOKEN_EXPIRES_IN_DAYS = '1';
     process.env.RATE_LIMIT_POINTS = '1000';
 
     const { AppModule } = await import('../src/app.module');
 
+    fakeSupabase = new FakeSupabaseAuthClient('test-secret-not-for-production');
+
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     })
-      .overrideProvider(EMAIL_SENDER)
-      .useClass(CapturingEmailSender)
+      .overrideProvider(SUPABASE_AUTH_CLIENT)
+      .useValue(fakeSupabase)
       .compile();
-
-    emailSender = moduleFixture.get<CapturingEmailSender>(EMAIL_SENDER);
-    fakeIdentityProvider =
-      moduleFixture.get<FakeIdentityProvider>(FakeIdentityProvider);
 
     app = moduleFixture.createNestApplication();
     app.setGlobalPrefix('api/v1');
@@ -50,167 +44,108 @@ describe('AuthController (e2e)', () => {
     }
   });
 
-  beforeEach(() => {
-    emailSender.reset();
-  });
-
-  it('/auth/signup (POST) - creates a user and returns tokens', async () => {
-    const res = await request(app.getHttpServer())
-      .post('/api/v1/auth/signup')
-      .send({ email: 'user@example.com', password: 'password123' })
-      .expect(201);
-
-    expect(res.body.accessToken).toBeDefined();
-    expect(res.body.refreshToken).toBeDefined();
-    expect(res.body.user.email).toBe('user@example.com');
-    expect(res.body.user.authProvider).toBe('email');
-  });
-
-  it('/auth/signin (POST) - authenticates an existing user', async () => {
-    await request(app.getHttpServer())
-      .post('/api/v1/auth/signup')
-      .send({ email: 'signin@example.com', password: 'password123' });
-
-    const res = await request(app.getHttpServer())
-      .post('/api/v1/auth/signin')
-      .send({ email: 'signin@example.com', password: 'password123' })
-      .expect(200);
-
-    expect(res.body.accessToken).toBeDefined();
-    expect(res.body.refreshToken).toBeDefined();
-  });
-
-  it('/auth/me (GET) - returns profile for authenticated user', async () => {
-    const signup = await request(app.getHttpServer())
-      .post('/api/v1/auth/signup')
-      .send({ email: 'profile@example.com', password: 'password123' });
+  it('/auth/me (GET) - returns profile for authenticated user and creates on first request', async () => {
+    const token = fakeSupabase.signToken({
+      sub: 'auth0|new-user',
+      email: 'new@example.com',
+    });
 
     const res = await request(app.getHttpServer())
       .get('/api/v1/auth/me')
-      .set('Authorization', `Bearer ${signup.body.accessToken}`)
+      .set('Authorization', `Bearer ${token}`)
       .expect(200);
 
-    expect(res.body.email).toBe('profile@example.com');
+    expect(res.body.email).toBe('new@example.com');
+    expect(res.body.authProvider).toBe('email');
   });
 
-  it('/auth/refresh (POST) - rotates refresh token', async () => {
-    const signup = await request(app.getHttpServer())
-      .post('/api/v1/auth/signup')
-      .send({ email: 'refresh@example.com', password: 'password123' });
-
-    const res = await request(app.getHttpServer())
-      .post('/api/v1/auth/refresh')
-      .send({ refreshToken: signup.body.refreshToken })
-      .expect(200);
-
-    expect(res.body.accessToken).toBeDefined();
-    expect(res.body.refreshToken).toBeDefined();
-  });
-
-  it('/auth/logout (POST) - revokes refresh token', async () => {
-    const signup = await request(app.getHttpServer())
-      .post('/api/v1/auth/signup')
-      .send({ email: 'logout@example.com', password: 'password123' });
-
+  it('/auth/me (GET) - rejects invalid token', async () => {
     await request(app.getHttpServer())
-      .post('/api/v1/auth/logout')
-      .send({ refreshToken: signup.body.refreshToken })
-      .expect(200);
-
-    await request(app.getHttpServer())
-      .post('/api/v1/auth/refresh')
-      .send({ refreshToken: signup.body.refreshToken })
+      .get('/api/v1/auth/me')
+      .set('Authorization', 'Bearer invalid-token')
       .expect(401);
   });
 
-  it('/auth/social (POST) - signs in with Google token', async () => {
-    fakeIdentityProvider.registerToken('google', 'valid-google-token', {
-      provider: 'google',
-      providerUserId: 'google-123',
-      email: 'google@example.com',
+  it('/auth/devices (POST) - registers a device session and GET lists it', async () => {
+    const token = fakeSupabase.signToken({
+      sub: 'auth0|device-user',
+      email: 'device@example.com',
     });
 
-    const res = await request(app.getHttpServer())
-      .post('/api/v1/auth/social')
-      .send({ provider: 'google', idToken: 'valid-google-token' })
-      .expect(200);
-
-    expect(res.body.user.email).toBe('google@example.com');
-    expect(res.body.user.authProvider).toBe('google');
-  });
-
-  it('/auth/otp (POST) - verifies email OTP', async () => {
-    await request(app.getHttpServer())
-      .post('/api/v1/auth/otp/send')
-      .send({ email: 'otp@example.com' })
-      .expect(200);
-
-    expect(emailSender.lastOtp).toBeDefined();
-    const code = emailSender.lastOtp!.code;
-
-    const res = await request(app.getHttpServer())
-      .post('/api/v1/auth/otp/verify')
-      .send({ email: 'otp@example.com', code })
-      .expect(200);
-
-    expect(res.body.accessToken).toBeDefined();
-    expect(res.body.user.email).toBe('otp@example.com');
-  });
-
-  it('/auth/social (POST) - signs in with Apple token', async () => {
-    fakeIdentityProvider.registerToken('apple', 'valid-apple-token', {
-      provider: 'apple',
-      providerUserId: 'apple-123',
-      email: 'apple@example.com',
-    });
-
-    const res = await request(app.getHttpServer())
-      .post('/api/v1/auth/social')
-      .send({ provider: 'apple', idToken: 'valid-apple-token' })
-      .expect(200);
-
-    expect(res.body.user.email).toBe('apple@example.com');
-    expect(res.body.user.authProvider).toBe('apple');
-  });
-
-  it('/auth/password-reset (POST) - resets password', async () => {
-    await request(app.getHttpServer())
-      .post('/api/v1/auth/signup')
-      .send({ email: 'reset@example.com', password: 'password123' });
-
-    await request(app.getHttpServer())
-      .post('/api/v1/auth/password-reset/request')
-      .send({ email: 'reset@example.com' })
-      .expect(200);
-
-    expect(emailSender.lastPasswordReset).toBeDefined();
-    const token = emailSender.lastPasswordReset!.token;
-
-    const res = await request(app.getHttpServer())
-      .post('/api/v1/auth/password-reset/confirm')
-      .send({ token, newPassword: 'newpassword123' })
-      .expect(200);
-
-    expect(res.body.user.email).toBe('reset@example.com');
-
-    await request(app.getHttpServer())
-      .post('/api/v1/auth/signin')
-      .send({ email: 'reset@example.com', password: 'newpassword123' })
-      .expect(200);
-  });
-
-  it('/auth/devices/register (POST) - registers a new device session', async () => {
-    const signup = await request(app.getHttpServer())
-      .post('/api/v1/auth/signup')
-      .send({ email: 'device@example.com', password: 'password123' });
-
-    const res = await request(app.getHttpServer())
-      .post('/api/v1/auth/devices/register')
-      .set('Authorization', `Bearer ${signup.body.accessToken}`)
+    const create = await request(app.getHttpServer())
+      .post('/api/v1/auth/devices')
+      .set('Authorization', `Bearer ${token}`)
       .send({ deviceId: 'device-001', deviceName: 'Test Phone' })
       .expect(201);
 
-    expect(res.body.accessToken).toBeDefined();
-    expect(res.body.refreshToken).toBeDefined();
+    expect(create.body.deviceId).toBe('device-001');
+
+    const list = await request(app.getHttpServer())
+      .get('/api/v1/auth/devices')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(list.body).toHaveLength(1);
+    expect(list.body[0].deviceId).toBe('device-001');
+  });
+
+  it('/auth/devices (DELETE) - revokes a device session', async () => {
+    const token = fakeSupabase.signToken({
+      sub: 'auth0|revoke-user',
+      email: 'revoke@example.com',
+    });
+
+    const create = await request(app.getHttpServer())
+      .post('/api/v1/auth/devices')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ deviceId: 'device-to-revoke' })
+      .expect(201);
+
+    await request(app.getHttpServer())
+      .delete(`/api/v1/auth/devices/${create.body.id}`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(204);
+
+    const list = await request(app.getHttpServer())
+      .get('/api/v1/auth/devices')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(list.body).toHaveLength(0);
+  });
+
+  it('/auth/account/delete (POST) - soft deletes and re-login cancels deletion', async () => {
+    const sub = 'auth0|delete-user';
+    const token = fakeSupabase.signToken({
+      sub,
+      email: 'delete@example.com',
+    });
+
+    await request(app.getHttpServer())
+      .post('/api/v1/auth/account/delete')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(204);
+
+    const cancel = await request(app.getHttpServer())
+      .post('/api/v1/auth/account/delete/cancel')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(201);
+
+    expect(cancel.body.email).toBe('delete@example.com');
+  });
+
+  it('/auth/otp/phone (POST) - sends and verifies phone OTP', async () => {
+    await request(app.getHttpServer())
+      .post('/api/v1/auth/otp/phone/send')
+      .send({ phone: '+15550001111' })
+      .expect(200);
+
+    const res = await request(app.getHttpServer())
+      .post('/api/v1/auth/otp/phone/verify')
+      .send({ phone: '+15550001111', code: '123456' })
+      .expect(200);
+
+    expect(res.body.phone).toBe('+15550001111');
+    expect(res.body.authProvider).toBe('phone');
   });
 });

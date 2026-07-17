@@ -3,7 +3,6 @@ import { randomUUID } from 'crypto';
 export interface DeviceSessionProps {
   id?: string;
   userId: string;
-  refreshTokenId: string;
   deviceId?: string;
   deviceName?: string;
   ipAddress?: string;
@@ -15,7 +14,6 @@ export interface DeviceSessionProps {
 export class DeviceSession {
   id: string;
   userId: string;
-  refreshTokenId: string;
   deviceId?: string;
   deviceName?: string;
   ipAddress?: string;
@@ -26,7 +24,6 @@ export class DeviceSession {
   constructor(props: DeviceSessionProps) {
     this.id = props.id ?? randomUUID();
     this.userId = props.userId;
-    this.refreshTokenId = props.refreshTokenId;
     this.deviceId = props.deviceId;
     this.deviceName = props.deviceName;
     this.ipAddress = props.ipAddress;

@@ -4,7 +4,6 @@ import { APP_GUARD, APP_INTERCEPTOR, APP_FILTER } from '@nestjs/core';
 import { AuthModule } from './infrastructure/modules/auth.module';
 import { HealthModule } from './infrastructure/health/health.module';
 import { RequestIdMiddleware } from './infrastructure/middleware/request-id.middleware';
-import { JwtAuthGuard } from './infrastructure/security/jwt-auth.guard';
 import { RlsInterceptor } from './infrastructure/security/rls.interceptor';
 import { RateLimitGuard } from './infrastructure/rate-limiter/rate-limit.guard';
 import {
@@ -15,7 +14,6 @@ import {
 @Module({
   imports: [ConfigModule.forRoot({ isGlobal: true }), AuthModule, HealthModule],
   providers: [
-    { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: RateLimitGuard },
     { provide: APP_INTERCEPTOR, useClass: RlsInterceptor },
     { provide: APP_FILTER, useClass: AuthExceptionFilter },
