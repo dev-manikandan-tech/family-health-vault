@@ -37,34 +37,35 @@ export class TypeOrmUserRepository implements IUserRepository {
   private toDomain(entity: UserOrmEntity): User {
     return new User({
       id: entity.id,
-      email: entity.email,
-      phone: entity.phone,
+      email: entity.email ?? undefined,
+      phone: entity.phone ?? undefined,
       authProvider: entity.authProvider as any,
-      providerUserId: entity.providerUserId,
+      providerUserId: entity.providerUserId ?? undefined,
       emailVerified: entity.emailVerified,
       phoneVerified: entity.phoneVerified,
       mfaEnabled: entity.mfaEnabled,
-      deletionRequestedAt: entity.deletionRequestedAt,
+      deletionRequestedAt: entity.deletionRequestedAt ?? undefined,
       createdAt: entity.createdAt,
       updatedAt: entity.updatedAt,
-      deletedAt: entity.deletedAt,
+      deletedAt: entity.deletedAt ?? undefined,
     });
   }
 
   private toOrm(user: User): UserOrmEntity {
     const entity = new UserOrmEntity();
     entity.id = user.id;
-    entity.email = user.email;
-    entity.phone = user.phone;
+    // Coerce undefined to null so TypeORM writes NULL instead of skipping columns.
+    entity.email = user.email ?? null;
+    entity.phone = user.phone ?? null;
     entity.authProvider = user.authProvider;
-    entity.providerUserId = user.providerUserId;
+    entity.providerUserId = user.providerUserId ?? null;
     entity.emailVerified = user.emailVerified;
     entity.phoneVerified = user.phoneVerified;
     entity.mfaEnabled = user.mfaEnabled;
-    entity.deletionRequestedAt = user.deletionRequestedAt;
+    entity.deletionRequestedAt = user.deletionRequestedAt ?? null;
     entity.createdAt = user.createdAt;
     entity.updatedAt = user.updatedAt;
-    entity.deletedAt = user.deletedAt;
+    entity.deletedAt = user.deletedAt ?? null;
     return entity;
   }
 }

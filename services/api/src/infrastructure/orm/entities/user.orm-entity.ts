@@ -14,17 +14,17 @@ export class UserOrmEntity {
   @PrimaryColumn()
   id: string;
 
-  @Column({ nullable: true })
-  email?: string;
+  @Column({ type: 'varchar', nullable: true })
+  email: string | null;
 
-  @Column({ nullable: true })
-  phone?: string;
+  @Column({ type: 'varchar', nullable: true })
+  phone: string | null;
 
   @Column({ name: 'auth_provider' })
   authProvider: string;
 
-  @Column({ nullable: true, name: 'provider_user_id' })
-  providerUserId?: string;
+  @Column({ type: 'varchar', nullable: true, name: 'provider_user_id' })
+  providerUserId: string | null;
 
   @Column({ default: false, name: 'email_verified' })
   emailVerified: boolean;
@@ -35,8 +35,12 @@ export class UserOrmEntity {
   @Column({ default: false, name: 'mfa_enabled' })
   mfaEnabled: boolean;
 
-  @Column({ nullable: true, name: 'deletion_requested_at' })
-  deletionRequestedAt?: Date;
+  @Column({
+    type: 'datetime',
+    nullable: true,
+    name: 'deletion_requested_at',
+  })
+  deletionRequestedAt: Date | null;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
@@ -44,6 +48,10 @@ export class UserOrmEntity {
   @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: Date;
 
-  @DeleteDateColumn({ nullable: true, name: 'deleted_at' })
-  deletedAt?: Date;
+  @DeleteDateColumn({
+    type: 'datetime',
+    nullable: true,
+    name: 'deleted_at',
+  })
+  deletedAt: Date | null;
 }

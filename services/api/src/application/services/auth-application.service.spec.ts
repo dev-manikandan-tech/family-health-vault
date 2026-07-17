@@ -188,7 +188,9 @@ describe('AuthApplicationService', () => {
       const payload = await supabase.verifyAccessToken(token);
       const synced = await service.syncUser(payload);
 
+      const reloaded = await userRepo.findById(synced.id);
       expect(synced.deletedAt).toBeUndefined();
+      expect(reloaded?.deletedAt).toBeUndefined();
     });
   });
 
@@ -222,8 +224,12 @@ describe('AuthApplicationService', () => {
       await userRepo.save(user);
 
       const result = await service.cancelAccountDeletion(user.id, deviceInfo);
+      const reloaded = await userRepo.findById(user.id);
 
       expect(result.deletedAt).toBeUndefined();
+      expect(result.deletionRequestedAt).toBeUndefined();
+      expect(reloaded?.deletedAt).toBeUndefined();
+      expect(reloaded?.deletionRequestedAt).toBeUndefined();
       expect(result.id).toBe(user.id);
     });
   });
