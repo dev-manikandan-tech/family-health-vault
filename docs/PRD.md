@@ -1,5 +1,7 @@
 # Product Requirements Document (PRD)
 
+> This PRD is the consumer-facing baseline. The technical architecture, phase prompts, and previous-vs-current requirements comparison are in `docs/CONVENTIONS.md`, `docs/PHASE0_REVIEW.md`, and `docs/PHASES_1_2_3_BLUEPRINT.md`.
+
 ## 1. Vision
 
 A secure, consumer-first Personal Health Record that lets individuals and families store, organize, search, and share every medical document as a single, coherent health timeline.
@@ -28,11 +30,14 @@ A secure, consumer-first Personal Health Record that lets individuals and famili
 - Invite members by email or phone.
 - Assign roles: Owner, Admin, Member, Dependent, Guest.
 - A single user can belong to multiple families (e.g. caregiver for aging parent).
+- Family roles govern **membership administration**; medical record access requires an explicit consent-based `RecordAccessGrant`.
 
-### Person management
-- Add persons within a family.
-- Capture name, date of birth, gender, relationship, notes.
-- Link a user account to one or more persons.
+### Patient profile management
+- A `PatientProfile` is the medical subject and is separate from the login `User`.
+- Add profiles within a family (self or dependents).
+- Capture name, date of birth, sex, blood group, allergies, ABHA ID, relationship, notes.
+- Link a `User` account to one or more profiles; a dependent profile may have no `User` (managed by a caregiver).
+- Each medical record (visit, document, lab result) belongs to a `PatientProfile`.
 
 ### Medical visits
 - Create a visit: title, date, doctor, hospital/department, diagnosis, notes.
@@ -64,9 +69,11 @@ A secure, consumer-first Personal Health Record that lets individuals and famili
 - Duplicate detection (exact and near-duplicate).
 
 ### Sharing & access control
+- Family membership roles manage administration (invite, rename, remove).
+- Medical record access is governed by explicit, revocable `RecordAccessGrant` consent with scope (`full`, `visits_only`, `emergency_card`) and optional expiry.
 - Time-limited, read-only share links for documents or visits.
-- Revoke shares.
-- Audit log of all share accesses.
+- Revoke shares and grants.
+- Audit log of every grant creation, revocation, and access.
 
 ### Data control
 - Soft delete with 30-day recovery window.
@@ -115,14 +122,16 @@ A secure, consumer-first Personal Health Record that lets individuals and famili
 | RTO | 4 hours |
 | RPO | 24 hours (daily backups) |
 | Data residency | India (primary); architecture supports multi-region |
-| Security | HIPAA-inspired + GDPR-inspired by design |
+| Security / compliance | DPDP Act 2023 first; HIPAA-inspired + GDPR-inspired technical controls |
 | AI data privacy | No training on customer data |
 | Accessibility | WCAG 2.1 AA |
 | Scale ceiling | 1,000,000 users without redesign |
 
 ## 6. Assumptions & constraints
 
-- Supabase Auth will be used for identity in MVP; migration path to enterprise identity is documented.
+- MVP uses a NestJS modular monolith (`services/api`) with PostgreSQL; services are extracted only when a module needs independent scale.
+- Supabase Auth will be used for identity in MVP; the API verifies Supabase JWTs and does not issue its own access tokens.
+- `User` (login identity) is separate from `PatientProfile` (medical subject); consent-based `RecordAccessGrant` controls record visibility.
 - AI processing is asynchronous and best-effort for MVP.
 - Handwritten text OCR accuracy is not guaranteed.
 - DICOM/FHIR are future; MVP documents are static files.
