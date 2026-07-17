@@ -1,66 +1,94 @@
-# Delivery Roadmap
+# Delivery Roadmap (Aligned with Improved Blueprint)
 
-## Phase 0: Foundation (weeks 1–2)
+> See `docs/PHASE0_REVIEW.md` for the previous-vs-current requirements comparison and `docs/PHASES_1_2_3_BLUEPRINT.md` for the ready-to-run Phase 1–3 prompts.
 
-- Finalize architecture and ADRs.
-- Set up GCP project, GKE, Cloud SQL, Redis, Storage.
-- Set up GitHub repo, CI/CD, Terraform baseline.
-- Bootstrap monorepo (Turborepo/Nx).
-- Implement Supabase Auth login (web + mobile).
+## Phase 0: Requirements & Architecture (weeks 1–2)
 
-## Phase 1: Family & Person Core (weeks 3–5)
+- Finalize PRD, SYSTEM_DESIGN, DATA_MODEL, SECURITY_MODEL, API_SPEC, CONVENTIONS.
+- Decide modular monolith vs. microservices (decision: modular monolith).
+- Choose DPDP Act 2023 as the primary compliance frame.
+- Separate `User` (login) from `PatientProfile` (medical subject) in the data model.
+- Define consent-based record access grants.
 
-- Family CRUD, invitations, roles.
-- Person CRUD.
-- Medical visit CRUD.
-- Database schema + RLS policies.
-- Audit logging.
+## Phase 1: Foundation & Scaffolding (weeks 3–4)
 
-## Phase 2: Document Management (weeks 6–9)
+- `docker-compose` local stack: Postgres 16 + pgvector/pg_trgm, Redis 7, MinIO, Mailpit.
+- Health endpoints, PHI-redacting logger, RFC 7807 error filter, request-id middleware.
+- `packages/types` with Zod schemas, `packages/config` for shared tooling.
+- GitHub Actions CI: lint, typecheck, test, build, Docker image on `main`.
+- `services/api` README with `make dev` one-command setup.
 
-- Signed upload URL flow.
-- Document metadata, categories, soft delete, restore.
-- Download with signed URLs.
-- Thumbnails for images.
-- Basic search by filename + visit data.
+## Phase 2: Authentication & Identity (weeks 5–7)
 
-## Phase 3: AI Pipeline (weeks 10–13)
+- Supabase Auth as IdP; verify JWT via JWKS.
+- Local `User` row as sync/audit cache; no API-side passwords or refresh tokens.
+- Phone OTP via Supabase.
+- Device session tracking and revocation.
+- Account deletion with 30-day soft-delete window and cancel flow.
+- Audit events for all auth mutations.
 
-- AI worker scaffolding.
-- OCR, classification, entity extraction.
-- AI summaries and timeline generation.
-- Smart tagging.
-- Duplicate detection.
-- Natural language search.
+## Phase 3: Families, Profiles & Consent (weeks 8–11)
 
-## Phase 4: Mobile Offline & Sharing (weeks 14–17)
+- `Family`, `FamilyMember`, `FamilyInvitation`, `PatientProfile`, `RecordAccessGrant`.
+- Family CRUD, invite/accept, role management, soft delete.
+- Patient profile CRUD with ABDM-ready `abha_id`.
+- Consent-based grants: `full`, `visits_only`, `emergency_card`.
+- Authorization matrix with explicit deny cases.
+- Pagination, search, audit logging for all mutations and cross-profile reads.
 
-- WatermelonDB integration.
-- Background sync.
-- Offline upload queue.
-- Share links and guest access.
-- Tablet and accessibility polish.
+## Phase 4: Medical Visits (weeks 12–14)
 
-## Phase 5: Web Admin & Compliance (weeks 18–20)
+- Visit CRUD with date, doctor, hospital, diagnosis, notes.
+- Soft delete + restore within 14 days.
+- Visit-level authorization via grants.
+- Timezone handling (`Asia/Kolkata` display, `timestamptz` storage).
 
-- Admin dashboard.
-- Data export.
-- Account deletion / erasure.
-- Consent management.
-- Security review and penetration test.
+## Phase 5: Document Upload & Processing (weeks 15–18)
 
-## Phase 6: Scale & Harden (weeks 21–24)
+- Presigned direct upload flow.
+- Virus scan, HEIC→JPEG, thumbnail, metadata extraction pipeline (BullMQ).
+- Private S3-compatible storage, SSE-KMS, signed download URLs.
+- Status machine and DLQ.
 
-- Load testing to 10k users.
-- Read replicas, CDN tuning.
-- CI/CD hardening.
-- Monitoring and runbooks.
-- Beta launch.
+## Phase 6: OCR & Extraction (weeks 19–22)
 
-## Phase 7: Post-MVP
+- Gemini 1.5 Flash vision behind an `ExtractorProvider` interface.
+- Zod-schema-validated structured output per document type.
+- Confidence gating and human-in-the-loop corrections.
+- Cost circuit breaker and no-PHI logging.
 
-- FHIR import/export.
-- DICOM support.
+## Phase 7: Timeline (weeks 23–25)
+
+- Materialized `timeline_events` table.
+- `GET /profiles/:id/timeline` with cursor pagination and filters.
+- PDF export for data portability.
+
+## Phase 8: Search (weeks 26–28)
+
+- Postgres FTS (`tsvector` + GIN), `pg_trgm` autocomplete, `pgvector` embeddings.
+- Consent-safe pre-filtering by grants.
+- Query understanding for Indian context ("amma", "HbA1c", "Apollo", Hinglish).
+
+## Phase 9: Notifications (weeks 29–31)
+
+- Transactional outbox pattern.
+- BullMQ workers for push (Expo), email, in-app.
+- Quiet hours, idempotency, security-alert overrides.
+- No medical details in notification payloads.
+
+## Phase 10: Production Hardening & Launch (weeks 32–34)
+
+- OWASP ASVS L2 self-assessment.
+- IDOR sweep, dependency audit, secret scan.
+- Terraform for ECS/Railway/GKE-ready Docker, RDS Postgres, ElastiCache, S3, CloudFront/WAF.
+- k6 load tests, backup restore drill, runbooks.
+- DPDP erasure verification and go/no-go launch checklist.
+
+## Post-MVP
+
+- FHIR R4 import/export.
+- DICOM viewer and storage.
 - ABDM integration.
-- Health Connect / HealthKit.
+- Google Health Connect / Apple HealthKit.
+- Lab/insurance/hospital APIs.
 - HIPAA/SOC2/ISO audits.
