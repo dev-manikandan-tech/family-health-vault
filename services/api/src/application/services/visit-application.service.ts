@@ -10,6 +10,7 @@ import {
   VISIT_REPOSITORY,
 } from '../../domain/constants/injection-tokens';
 import { AuthorizationService } from './authorization.service';
+import { TimelineApplicationService } from './timeline-application.service';
 import { DeviceInfo } from './auth-application.service';
 import {
   CreateVisitDto,
@@ -28,6 +29,7 @@ export class VisitApplicationService {
     @Inject(AUDIT_SERVICE)
     private readonly auditService: IAuditService,
     private readonly authorizationService: AuthorizationService,
+    private readonly timelineService: TimelineApplicationService,
   ) {}
 
   async createVisit(
@@ -69,6 +71,7 @@ export class VisitApplicationService {
     });
 
     const saved = await this.visitRepository.save(visit);
+    await this.timelineService.recordVisit(saved);
 
     await this.auditService.log({
       action: 'VISIT_CREATED',
@@ -186,6 +189,7 @@ export class VisitApplicationService {
     });
 
     const saved = await this.visitRepository.save(visit);
+    await this.timelineService.recordVisit(saved);
 
     await this.auditService.log({
       action: 'VISIT_UPDATED',
@@ -271,6 +275,7 @@ export class VisitApplicationService {
 
     visit.restore();
     const saved = await this.visitRepository.save(visit);
+    await this.timelineService.recordVisit(saved);
 
     await this.auditService.log({
       action: 'VISIT_RESTORED',

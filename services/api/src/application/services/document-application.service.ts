@@ -17,6 +17,7 @@ import {
   VISIT_REPOSITORY,
 } from '../../domain/constants/injection-tokens';
 import { AuthorizationService } from './authorization.service';
+import { TimelineApplicationService } from './timeline-application.service';
 import { DeviceInfo } from './auth-application.service';
 import {
   ConfirmUploadDto,
@@ -42,6 +43,7 @@ export class DocumentApplicationService {
     @Inject(AUDIT_SERVICE)
     private readonly auditService: IAuditService,
     private readonly authorizationService: AuthorizationService,
+    private readonly timelineService: TimelineApplicationService,
   ) {}
 
   async requestPresignedUpload(
@@ -178,6 +180,13 @@ export class DocumentApplicationService {
     await this.documentQueue.enqueue(saved.id);
 
     const processed = (await this.documentRepository.findById(saved.id))!;
+    await this.timelineService.recordDocument(processed);
+    if (
+      processed.extractionStatus !== 'pending' &&
+      processed.extractionStatus !== 'failed'
+    ) {
+      await this.timelineService.recordExtraction(processed);
+    }
     return this.toResponse(processed);
   }
 

@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fhv-api
+  namespace: fhv
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: fhv-api
+  template:
+    metadata:
+      labels:
+        app: fhv-api
+    spec:
+      serviceAccountName: fhv-api
+      containers:
+        - name: api
+          image: gcr.io/PROJECT_ID/fhv-api:latest
+          ports:
+            - containerPort: 3000
+          envFrom:
+            - secretRef:
+                name: fhv-api-secrets
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 5

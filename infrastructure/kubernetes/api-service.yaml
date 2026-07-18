@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: fhv-api
+  namespace: fhv
+spec:
+  selector:
+    app: fhv-api
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 3000

@@ -1,0 +1,22 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: fhv-api
+  namespace: fhv
+  annotations:
+    kubernetes.io/ingress.class: gce
+    kubernetes.io/ingress.global-static-ip-name: fhv-api-ip
+    networking.gke.io/managed-certificates: fhv-api-cert
+    kubernetes.io/ingress.allow-http: "false"
+spec:
+  rules:
+    - host: api.familyhealthvault.com
+      http:
+        paths:
+          - path: /*
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: fhv-api
+                port:
+                  number: 80
