@@ -8,6 +8,7 @@ import {
   HttpStatus,
   Ip,
   Param,
+  Patch,
   Post,
   Query,
   UseGuards,
@@ -21,6 +22,7 @@ import {
   CreateDocumentDto,
   ConfirmUploadDto,
   PaginationQueryDto,
+  UpdateExtractionDto,
 } from '../../application/dto';
 
 @ApiTags('Documents')
@@ -118,6 +120,30 @@ export class DocumentDetailController {
     return this.documentService.deleteDocument(
       userId,
       id,
+      this.toDeviceInfo(ip, userAgent),
+    );
+  }
+
+  @Get(':id/extraction')
+  getExtractionResult(
+    @CurrentUser('userId') userId: string,
+    @Param('id') id: string,
+  ) {
+    return this.documentService.getExtractionResult(userId, id);
+  }
+
+  @Patch(':id/extraction')
+  updateExtractionCorrection(
+    @CurrentUser('userId') userId: string,
+    @Param('id') id: string,
+    @Body() dto: UpdateExtractionDto,
+    @Ip() ip: string,
+    @Headers('user-agent') userAgent: string,
+  ) {
+    return this.documentService.updateExtractionCorrection(
+      userId,
+      id,
+      dto,
       this.toDeviceInfo(ip, userAgent),
     );
   }

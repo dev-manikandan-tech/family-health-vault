@@ -1,4 +1,5 @@
 import { randomUUID } from 'crypto';
+import { ExtractedEntities } from '../services/extractor-provider.interface';
 
 export type DocumentStatus =
   | 'pending_upload'
@@ -8,6 +9,9 @@ export type DocumentStatus =
   | 'ready'
   | 'failed'
   | 'quarantined';
+
+export type ExtractionStatus =
+  'pending' | 'extracted' | 'needs_review' | 'corrected' | 'failed';
 
 export interface ExtractedMetadata {
   width?: number;
@@ -36,6 +40,13 @@ export interface DocumentProps {
   processingError?: string;
   retryCount?: number;
   extractedMetadata?: ExtractedMetadata;
+  extractedEntities?: ExtractedEntities;
+  extractionConfidence?: number;
+  extractionStatus?: ExtractionStatus;
+  extractionError?: string;
+  extractedAt?: Date;
+  correctedBy?: string;
+  correctedAt?: Date;
   createdAt?: Date;
   updatedAt?: Date;
   deletedAt?: Date;
@@ -59,6 +70,13 @@ export class Document {
   processingError?: string;
   retryCount: number;
   extractedMetadata: ExtractedMetadata;
+  extractedEntities?: ExtractedEntities;
+  extractionConfidence?: number;
+  extractionStatus: ExtractionStatus;
+  extractionError?: string;
+  extractedAt?: Date;
+  correctedBy?: string;
+  correctedAt?: Date;
   createdAt: Date;
   updatedAt: Date;
   deletedAt?: Date;
@@ -81,6 +99,13 @@ export class Document {
     this.processingError = props.processingError;
     this.retryCount = props.retryCount ?? 0;
     this.extractedMetadata = props.extractedMetadata ?? {};
+    this.extractedEntities = props.extractedEntities;
+    this.extractionConfidence = props.extractionConfidence;
+    this.extractionStatus = props.extractionStatus ?? 'pending';
+    this.extractionError = props.extractionError;
+    this.extractedAt = props.extractedAt;
+    this.correctedBy = props.correctedBy;
+    this.correctedAt = props.correctedAt;
     this.createdAt = props.createdAt ?? new Date();
     this.updatedAt = props.updatedAt ?? new Date();
     this.deletedAt = props.deletedAt;
@@ -137,6 +162,35 @@ export class Document {
 
   updateMetadata(metadata: ExtractedMetadata): void {
     this.extractedMetadata = { ...this.extractedMetadata, ...metadata };
+    this.updatedAt = new Date();
+  }
+
+  applyExtraction(
+    entities: ExtractedEntities,
+    confidence: number,
+    threshold: number,
+  ): void {
+    this.extractedEntities = entities;
+    this.extractionConfidence = confidence;
+    this.extractionStatus =
+      confidence >= threshold ? 'extracted' : 'needs_review';
+    this.extractionError = undefined;
+    this.extractedAt = new Date();
+    this.updatedAt = new Date();
+  }
+
+  applyExtractionError(error: string): void {
+    this.extractionStatus = 'failed';
+    this.extractionError = error;
+    this.updatedAt = new Date();
+  }
+
+  correctExtraction(entities: ExtractedEntities, correctedBy: string): void {
+    this.extractedEntities = entities;
+    this.extractionStatus = 'corrected';
+    this.extractionConfidence = 1.0;
+    this.correctedBy = correctedBy;
+    this.correctedAt = new Date();
     this.updatedAt = new Date();
   }
 }

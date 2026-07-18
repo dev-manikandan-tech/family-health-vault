@@ -1,4 +1,8 @@
-import { ExtractedMetadata } from '../../../domain/entities/document.entity';
+import {
+  ExtractedMetadata,
+  ExtractionStatus,
+} from '../../../domain/entities/document.entity';
+import { ExtractedEntities } from '../../../domain/services/extractor-provider.interface';
 
 export class DocumentResponseDto {
   id: string;
@@ -18,6 +22,13 @@ export class DocumentResponseDto {
   processingError?: string;
   retryCount: number;
   extractedMetadata: ExtractedMetadata;
+  extractedEntities?: ExtractedEntities;
+  extractionConfidence?: number;
+  extractionStatus: ExtractionStatus;
+  extractionError?: string;
+  extractedAt?: Date;
+  correctedBy?: string;
+  correctedAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }

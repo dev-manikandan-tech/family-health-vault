@@ -291,6 +291,59 @@ export class DocumentApplicationService {
     });
   }
 
+  async getExtractionResult(
+    userId: string,
+    documentId: string,
+  ): Promise<{
+    extractedEntities?: unknown;
+    extractionConfidence?: number;
+    extractionStatus: string;
+    extractionError?: string;
+  }> {
+    const document = await this.requireDocument(
+      userId,
+      documentId,
+      'visits_only',
+    );
+
+    return {
+      extractedEntities: document.extractedEntities,
+      extractionConfidence: document.extractionConfidence,
+      extractionStatus: document.extractionStatus,
+      extractionError: document.extractionError,
+    };
+  }
+
+  async updateExtractionCorrection(
+    userId: string,
+    documentId: string,
+    dto: { extractedEntities: Record<string, unknown> },
+    deviceInfo: DeviceInfo,
+  ): Promise<DocumentResponseDto> {
+    const document = await this.requireDocument(userId, documentId, 'full');
+
+    const { ExtractedEntitiesSchema } =
+      await import('../../domain/services/extractor-provider.interface');
+    const parsed = ExtractedEntitiesSchema.parse(dto.extractedEntities);
+
+    document.correctExtraction(parsed, userId);
+    const saved = await this.documentRepository.save(document);
+
+    await this.auditService.log({
+      action: 'DOCUMENT_EXTRACTION_CORRECTED',
+      resourceType: 'document',
+      resourceId: document.id,
+      actorId: userId,
+      patientProfileId: document.patientProfileId,
+      familyId: document.familyId,
+      ip: deviceInfo.ipAddress,
+      userAgent: deviceInfo.userAgent,
+      metadata: { documentType: parsed.documentType },
+    });
+
+    return this.toResponse(saved);
+  }
+
   private async requireDocument(
     userId: string,
     documentId: string,
@@ -348,6 +401,13 @@ export class DocumentApplicationService {
       processingError: document.processingError,
       retryCount: document.retryCount,
       extractedMetadata: document.extractedMetadata,
+      extractedEntities: document.extractedEntities,
+      extractionConfidence: document.extractionConfidence,
+      extractionStatus: document.extractionStatus,
+      extractionError: document.extractionError,
+      extractedAt: document.extractedAt,
+      correctedBy: document.correctedBy,
+      correctedAt: document.correctedAt,
       createdAt: document.createdAt,
       updatedAt: document.updatedAt,
     };
