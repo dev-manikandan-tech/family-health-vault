@@ -58,11 +58,16 @@ import {
   ],
   exports: [
     SupabaseAuthGuard,
+    AuthApplicationService,
     RlsContextService,
     RlsInterceptor,
     RateLimitGuard,
     RateLimiterService,
     USER_REPOSITORY,
+    DEVICE_SESSION_REPOSITORY,
+    AUDIT_LOG_REPOSITORY,
+    AUDIT_SERVICE,
+    SUPABASE_AUTH_CLIENT,
   ],
 })
 export class AuthModule {}

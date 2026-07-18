@@ -3,6 +3,11 @@ import { TypeOrmModuleOptions } from '@nestjs/typeorm';
 import { UserOrmEntity } from '../orm/entities/user.orm-entity';
 import { DeviceSessionOrmEntity } from '../orm/entities/device-session.orm-entity';
 import { AuditLogOrmEntity } from '../orm/entities/audit-log.orm-entity';
+import { FamilyOrmEntity } from '../orm/entities/family.orm-entity';
+import { FamilyMemberOrmEntity } from '../orm/entities/family-member.orm-entity';
+import { FamilyInvitationOrmEntity } from '../orm/entities/family-invitation.orm-entity';
+import { PatientProfileOrmEntity } from '../orm/entities/patient-profile.orm-entity';
+import { RecordAccessGrantOrmEntity } from '../orm/entities/record-access-grant.orm-entity';
 
 export const databaseConfig = registerAs(
   'database',
@@ -10,7 +15,16 @@ export const databaseConfig = registerAs(
     const dbType = process.env.DB_TYPE || 'postgres';
     const base: TypeOrmModuleOptions = {
       type: dbType as any,
-      entities: [UserOrmEntity, DeviceSessionOrmEntity, AuditLogOrmEntity],
+      entities: [
+        UserOrmEntity,
+        DeviceSessionOrmEntity,
+        AuditLogOrmEntity,
+        FamilyOrmEntity,
+        FamilyMemberOrmEntity,
+        FamilyInvitationOrmEntity,
+        PatientProfileOrmEntity,
+        RecordAccessGrantOrmEntity,
+      ],
       synchronize: process.env.NODE_ENV !== 'production',
       dropSchema: process.env.NODE_ENV === 'test',
       logging: process.env.DB_LOGGING === 'true',
