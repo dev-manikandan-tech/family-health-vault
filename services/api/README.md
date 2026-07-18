@@ -77,7 +77,9 @@ npm run lint
 | `SUPABASE_URL` | Supabase project URL | — |
 | `SUPABASE_ANON_KEY` | Supabase anon/public key (for JWKS requests) | — |
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key (for admin actions) | — |
-| `JWT_SECRET` | Optional fallback JWT secret for local/fake auth | `change-me-in-production` |
+| `SUPABASE_JWT_ISSUER` | Optional override for JWT `iss` validation | `${SUPABASE_URL}/auth/v1` |
+| `SUPABASE_JWT_AUDIENCE` | Optional override for JWT `aud` validation | `authenticated` |
+| `JWT_SECRET` | Fallback shared secret for local dev/tests only; ignored in production | — |
 | `DB_TYPE` | `postgres` or `better-sqlite3` | `postgres` |
 | `DATABASE_URL` | Postgres connection string | — |
 | `DB_HOST` / `DB_PORT` / `DB_USERNAME` / `DB_PASSWORD` / `DB_NAME` | Postgres settings | — |

@@ -1,8 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { verify } from 'jsonwebtoken';
+import { Algorithm, verify, VerifyOptions } from 'jsonwebtoken';
 import { JwksClient, SigningKeyNotFoundError } from 'jwks-rsa';
+import WebSocket from 'ws';
 import {
   ISupabaseAuthClient,
   SupabaseTokenPayload,
@@ -14,6 +15,9 @@ export class SupabaseAuthClient implements ISupabaseAuthClient {
   private readonly adminClient: SupabaseClient;
   private readonly jwksClient: JwksClient;
   private readonly fallbackSecret?: string;
+  private readonly issuer?: string;
+  private readonly audience: string;
+  private readonly isProduction: boolean;
 
   constructor(private readonly configService: ConfigService) {
     const url = this.configService.get<string>('auth.supabaseUrl');
@@ -21,6 +25,9 @@ export class SupabaseAuthClient implements ISupabaseAuthClient {
       'auth.supabaseServiceRoleKey',
     );
     const anonKey = this.configService.get<string>('auth.supabaseAnonKey');
+    const nodeEnv =
+      this.configService.get<string>('auth.nodeEnv') || 'development';
+    this.isProduction = nodeEnv === 'production';
 
     if (!url || !serviceRoleKey) {
       throw new Error(
@@ -30,6 +37,7 @@ export class SupabaseAuthClient implements ISupabaseAuthClient {
 
     this.adminClient = createClient(url, serviceRoleKey, {
       auth: { autoRefreshToken: false, persistSession: false },
+      realtime: { transport: WebSocket as any },
     });
 
     const jwksUri =
@@ -43,14 +51,26 @@ export class SupabaseAuthClient implements ISupabaseAuthClient {
       jwksRequestsPerMinute: 10,
     });
 
-    this.fallbackSecret = this.configService.get<string>('auth.jwtSecret');
+    // The HS256/JWT_SECRET fallback is only for local development and tests.
+    // It must never be accepted in production.
+    const jwtSecret = this.configService.get<string>('auth.jwtSecret');
+    this.fallbackSecret = this.isProduction ? undefined : jwtSecret;
+
+    const configuredIssuer = this.configService.get<string>('auth.jwtIssuer');
+    const configuredAudience =
+      this.configService.get<string>('auth.jwtAudience');
+    this.issuer = configuredIssuer || (url ? `${url}/auth/v1` : undefined);
+    this.audience = configuredAudience || 'authenticated';
   }
 
   async verifyAccessToken(token: string): Promise<SupabaseTokenPayload> {
     const decodedHeader = this.decodeTokenHeader(token);
     const algorithm = decodedHeader?.alg;
 
-    if (algorithm === 'HS256' && this.fallbackSecret) {
+    if (algorithm === 'HS256') {
+      if (!this.fallbackSecret) {
+        throw new Error('HS256 tokens are not accepted');
+      }
       return this.verifyWithSecret(token, this.fallbackSecret);
     }
 
@@ -134,18 +154,31 @@ export class SupabaseAuthClient implements ISupabaseAuthClient {
     }
   }
 
+  private verifyOptions(allowedAlgorithms: Algorithm[]): VerifyOptions {
+    const options: VerifyOptions = { algorithms: allowedAlgorithms };
+    if (this.issuer) {
+      options.issuer = this.issuer;
+    }
+    options.audience = this.audience;
+    return options;
+  }
+
   private verifyWithSecret(
     token: string,
     secret: string,
   ): SupabaseTokenPayload {
+    // The HS256 fallback is for local development/tests; it cannot enforce
+    // issuer/audience because those values are not set by test fakes.
     return verify(token, secret, {
-      algorithms: ['HS256'],
+      algorithms: ['HS256'] as Algorithm[],
     }) as SupabaseTokenPayload;
   }
 
   private verifyWithKey(token: string, key: string): SupabaseTokenPayload {
-    return verify(token, key, {
-      algorithms: ['RS256'],
-    }) as SupabaseTokenPayload;
+    return verify(
+      token,
+      key,
+      this.verifyOptions(['RS256'] as Algorithm[]),
+    ) as SupabaseTokenPayload;
   }
 }

@@ -14,17 +14,17 @@ export class UserOrmEntity {
   @PrimaryColumn()
   id: string;
 
-  @Column({ nullable: true })
-  email?: string;
+  @Column({ type: 'varchar', nullable: true })
+  email: string | null;
 
-  @Column({ nullable: true })
-  phone?: string;
+  @Column({ type: 'varchar', nullable: true })
+  phone: string | null;
 
   @Column({ name: 'auth_provider' })
   authProvider: string;
 
-  @Column({ nullable: true, name: 'provider_user_id' })
-  providerUserId?: string;
+  @Column({ type: 'varchar', nullable: true, name: 'provider_user_id' })
+  providerUserId: string | null;
 
   @Column({ default: false, name: 'email_verified' })
   emailVerified: boolean;

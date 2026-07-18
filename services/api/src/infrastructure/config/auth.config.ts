@@ -20,7 +20,9 @@ export const authConfig = registerAs('auth', () => {
     supabaseServiceRoleKey,
     supabaseAnonKey,
     supabaseJwksUrl,
-    jwtSecret: process.env.JWT_SECRET || 'dev-secret-not-for-production',
+    jwtSecret: process.env.JWT_SECRET,
+    jwtIssuer: process.env.SUPABASE_JWT_ISSUER,
+    jwtAudience: process.env.SUPABASE_JWT_AUDIENCE,
     nodeEnv: process.env.NODE_ENV || 'development',
   };
 });
