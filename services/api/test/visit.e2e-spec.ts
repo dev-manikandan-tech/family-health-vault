@@ -129,6 +129,11 @@ describe('VisitController (e2e)', () => {
       .set('Authorization', `Bearer ${owner}`)
       .expect(204);
 
+    await request(app.getHttpServer())
+      .get(`/api/v1/visits/${visit.body.id}`)
+      .set('Authorization', `Bearer ${owner}`)
+      .expect(404);
+
     const afterDelete = await request(app.getHttpServer())
       .get(`/api/v1/profiles/${profile.id}/visits`)
       .set('Authorization', `Bearer ${owner}`)

@@ -126,7 +126,7 @@ export class VisitApplicationService {
 
   async getVisit(userId: string, visitId: string): Promise<VisitResponseDto> {
     const visit = await this.visitRepository.findById(visitId);
-    if (!visit) {
+    if (!visit || visit.deletedAt) {
       throw new AuthError(AuthErrorCode.PROFILE_NOT_FOUND, 'Visit not found');
     }
 
