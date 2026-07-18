@@ -47,14 +47,20 @@ resource "google_container_cluster" "gke" {
 
   private_cluster_config {
     enable_private_nodes    = true
-    enable_private_endpoint = false
+    enable_private_endpoint = var.gke_enable_private_endpoint
     master_ipv4_cidr_block  = "172.16.0.0/28"
   }
 
-  master_authorized_networks_config {
-    cidr_blocks {
-      cidr_block   = "0.0.0.0/0"
-      display_name = "public"
+  dynamic "master_authorized_networks_config" {
+    for_each = length(var.gke_master_authorized_cidrs) > 0 ? [1] : []
+    content {
+      dynamic "cidr_blocks" {
+        for_each = var.gke_master_authorized_cidrs
+        content {
+          cidr_block   = cidr_blocks.value.cidr_block
+          display_name = cidr_blocks.value.display_name
+        }
+      }
     }
   }
 }

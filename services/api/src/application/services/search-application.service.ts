@@ -116,8 +116,8 @@ export class SearchApplicationService {
       .getRepository(VisitOrmEntity)
       .createQueryBuilder('v')
       .select([
-        'v.doctor_name AS doctorName',
-        'v.hospital_name AS hospitalName',
+        'v.doctor_name AS doctorname',
+        'v.hospital_name AS hospitalname',
         'v.diagnosis AS diagnosis',
       ])
       .where('v.patient_profile_id IN (:...ids)', { ids: profileIds })
@@ -133,7 +133,7 @@ export class SearchApplicationService {
 
     const suggestions = new Set<string>();
     for (const v of visits) {
-      for (const field of ['doctorName', 'hospitalName', 'diagnosis']) {
+      for (const field of ['doctorname', 'hospitalname', 'diagnosis']) {
         const value = v[field];
         if (
           typeof value === 'string' &&

@@ -43,6 +43,21 @@ variable "gke_machine_type" {
   default     = "e2-medium"
 }
 
+variable "gke_enable_private_endpoint" {
+  description = "Disable public Kubernetes API endpoint"
+  type        = bool
+  default     = true
+}
+
+variable "gke_master_authorized_cidrs" {
+  description = "CIDR blocks allowed to access the GKE control plane"
+  type = list(object({
+    cidr_block   = string
+    display_name = string
+  }))
+  default = []
+}
+
 variable "cloud_sql_tier" {
   description = "Cloud SQL instance tier"
   type        = string

@@ -91,4 +91,63 @@ describe('TimelineController (e2e)', () => {
     expect(pdf.headers['content-type']).toBe('application/pdf');
     expect(pdf.body.length).toBeGreaterThan(0);
   });
+
+  it('filters timeline by date range and paginates with cursor', async () => {
+    const owner = tokenFor('timeline-owner-2', 'owner2@example.com');
+
+    const family = await request(app.getHttpServer())
+      .post('/api/v1/families')
+      .set('Authorization', `Bearer ${owner}`)
+      .send({ name: 'Timeline Family 2' })
+      .expect(201);
+
+    const profile = await request(app.getHttpServer())
+      .post('/api/v1/profiles')
+      .set('Authorization', `Bearer ${owner}`)
+      .send({ name: 'Timeline Patient 2', familyId: family.body.id })
+      .expect(201);
+
+    const dates = ['2024-06-01', '2024-06-15', '2024-06-30'];
+    for (const date of dates) {
+      await request(app.getHttpServer())
+        .post(`/api/v1/profiles/${profile.body.id}/visits`)
+        .set('Authorization', `Bearer ${owner}`)
+        .send({
+          title: `Visit ${date}`,
+          hospitalName: `Visit ${date}`,
+          visitedAt: `${date}T10:00:00.000Z`,
+          diagnosis: 'Checkup',
+        })
+        .expect(201);
+    }
+
+    const filtered = await request(app.getHttpServer())
+      .get(
+        `/api/v1/profiles/${profile.body.id}/timeline?fromDate=2024-06-10&toDate=2024-06-20`,
+      )
+      .set('Authorization', `Bearer ${owner}`)
+      .expect(200);
+
+    expect(filtered.body.events.length).toBe(1);
+    expect(filtered.body.events[0].title).toBe('Visit 2024-06-15');
+
+    const page1 = await request(app.getHttpServer())
+      .get(`/api/v1/profiles/${profile.body.id}/timeline?limit=1`)
+      .set('Authorization', `Bearer ${owner}`)
+      .expect(200);
+
+    expect(page1.body.events.length).toBe(1);
+    expect(page1.body.nextCursor).toBeDefined();
+
+    const cursor = `${page1.body.nextCursor.eventDate}|${page1.body.nextCursor.id}`;
+    const page2 = await request(app.getHttpServer())
+      .get(
+        `/api/v1/profiles/${profile.body.id}/timeline?limit=1&cursor=${encodeURIComponent(cursor)}`,
+      )
+      .set('Authorization', `Bearer ${owner}`)
+      .expect(200);
+
+    expect(page2.body.events.length).toBe(1);
+    expect(page2.body.events[0].title).not.toBe(page1.body.events[0].title);
+  });
 });
