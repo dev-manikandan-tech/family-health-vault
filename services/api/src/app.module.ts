@@ -4,6 +4,7 @@ import { APP_GUARD, APP_INTERCEPTOR, APP_FILTER } from '@nestjs/core';
 import { AuthModule } from './infrastructure/modules/auth.module';
 import { FamilyModule } from './infrastructure/modules/family.module';
 import { HealthModule } from './infrastructure/health/health.module';
+import { VisitModule } from './infrastructure/modules/visit.module';
 import { RequestIdMiddleware } from './infrastructure/middleware/request-id.middleware';
 import { RlsInterceptor } from './infrastructure/security/rls.interceptor';
 import { RateLimitGuard } from './infrastructure/rate-limiter/rate-limit.guard';
@@ -17,6 +18,7 @@ import {
     ConfigModule.forRoot({ isGlobal: true }),
     AuthModule,
     FamilyModule,
+    VisitModule,
     HealthModule,
   ],
   providers: [

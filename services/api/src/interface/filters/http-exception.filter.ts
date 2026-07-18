@@ -54,6 +54,8 @@ export class AuthExceptionFilter implements ExceptionFilter {
       case 'FAMILY_NOT_FOUND':
       case 'MEMBER_NOT_FOUND':
       case 'INVITATION_NOT_FOUND':
+      case 'PROFILE_NOT_FOUND':
+      case 'GRANT_NOT_FOUND':
         status = HttpStatus.NOT_FOUND;
         break;
       case 'USER_ALREADY_EXISTS':
