@@ -13,6 +13,7 @@ import {
   AuthExceptionFilter,
   GlobalHttpExceptionFilter,
 } from './interface/filters/http-exception.filter';
+import { ZodExceptionFilter } from './interface/filters/zod-exception.filter';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import {
     { provide: APP_GUARD, useClass: RateLimitGuard },
     { provide: APP_INTERCEPTOR, useClass: RlsInterceptor },
     { provide: APP_FILTER, useClass: AuthExceptionFilter },
+    { provide: APP_FILTER, useClass: ZodExceptionFilter },
     { provide: APP_FILTER, useClass: GlobalHttpExceptionFilter },
   ],
 })

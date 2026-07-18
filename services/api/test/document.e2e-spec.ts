@@ -255,5 +255,17 @@ describe('DocumentController (e2e)', () => {
 
     expect(corrected.body.extractionStatus).toBe('corrected');
     expect(corrected.body.extractedEntities.doctorName).toBe('Dr. Y');
+
+    await request(app.getHttpServer())
+      .patch(`/api/v1/documents/${presign.body.documentId}/extraction`)
+      .set('Authorization', `Bearer ${owner}`)
+      .send({
+        extractedEntities: {
+          documentType: 'unknown_type',
+          confidence: 1,
+        },
+        correctedBy: owner,
+      })
+      .expect(400);
   });
 });
