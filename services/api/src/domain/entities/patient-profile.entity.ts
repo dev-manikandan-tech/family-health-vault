@@ -54,6 +54,8 @@ export class PatientProfile {
     if (updates.bloodGroup !== undefined) this.bloodGroup = updates.bloodGroup;
     if (updates.allergies !== undefined) this.allergies = updates.allergies;
     if (updates.abhaId !== undefined) this.abhaId = updates.abhaId;
+    if (updates.managedByUserId !== undefined)
+      this.managedByUserId = updates.managedByUserId;
     this.updatedAt = new Date();
   }
 

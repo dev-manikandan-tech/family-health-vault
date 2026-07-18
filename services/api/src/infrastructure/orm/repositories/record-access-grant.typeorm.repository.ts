@@ -45,12 +45,16 @@ export class TypeOrmRecordAccessGrantRepository implements IRecordAccessGrantRep
     granteeUserId: string,
     patientProfileId: string,
   ): Promise<RecordAccessGrant | null> {
-    const entity = await this.getRepo().findOne({
+    const entities = await this.getRepo().find({
       where: { granteeUserId, patientProfileId },
     });
-    return entity && !this.toDomain(entity).isExpired()
-      ? this.toDomain(entity)
-      : null;
+    const active = entities
+      .map((e) => this.toDomain(e))
+      .filter((g) => !g.isExpired());
+    if (active.length === 0) return null;
+    return active.reduce((best, current) =>
+      current.isAtLeast(best.scope) ? current : best,
+    );
   }
 
   async findActiveByGranteeUserId(

@@ -47,7 +47,7 @@ export class PatientProfileApplicationService {
       managedByUserId: userId,
     });
 
-    if (dto.familyId && !dto.userId) {
+    if (dto.familyId) {
       await this.authorizationService.requireFamilyRole(
         userId,
         dto.familyId,

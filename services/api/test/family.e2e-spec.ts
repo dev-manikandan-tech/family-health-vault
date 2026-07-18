@@ -159,6 +159,120 @@ describe('FamilyController (e2e)', () => {
       .expect(403);
   });
 
+  it('denies non-member creating a profile in an arbitrary family', async () => {
+    const owner = ownerToken();
+    const stranger = fakeSupabase.signToken({
+      sub: 'stranger-user',
+      email: 'stranger@example.com',
+    });
+
+    const family = await request(app.getHttpServer())
+      .post('/api/v1/families')
+      .set('Authorization', `Bearer ${owner}`)
+      .send({ name: 'Private Family' })
+      .expect(201);
+
+    await request(app.getHttpServer())
+      .post('/api/v1/profiles')
+      .set('Authorization', `Bearer ${stranger}`)
+      .send({
+        name: 'Injected Profile',
+        familyId: family.body.id,
+        userId: 'some-user-id',
+      })
+      .expect(403);
+  });
+
+  it('allows update when a higher-scope grant exists alongside a lower-scope grant', async () => {
+    const owner = ownerToken();
+    const member = memberToken();
+
+    const family = await request(app.getHttpServer())
+      .post('/api/v1/families')
+      .set('Authorization', `Bearer ${owner}`)
+      .send({ name: 'Grant Family' })
+      .expect(201);
+
+    const profile = await request(app.getHttpServer())
+      .post('/api/v1/profiles')
+      .set('Authorization', `Bearer ${owner}`)
+      .send({
+        name: 'Shared Profile',
+        familyId: family.body.id,
+      })
+      .expect(201);
+
+    const invite = await request(app.getHttpServer())
+      .post(`/api/v1/families/${family.body.id}/invite`)
+      .set('Authorization', `Bearer ${owner}`)
+      .send({ email: 'member@example.com', role: 'member' })
+      .expect(201);
+
+    await request(app.getHttpServer())
+      .post('/api/v1/families/invitations/accept')
+      .set('Authorization', `Bearer ${member}`)
+      .send({ token: invite.body.token, name: 'Member User' })
+      .expect(201);
+
+    await request(app.getHttpServer())
+      .post(`/api/v1/profiles/${profile.body.id}/grants`)
+      .set('Authorization', `Bearer ${owner}`)
+      .send({ granteeUserId: 'member-user', scope: 'emergency_card' })
+      .expect(201);
+
+    await request(app.getHttpServer())
+      .get(`/api/v1/profiles/${profile.body.id}`)
+      .set('Authorization', `Bearer ${member}`)
+      .expect(200);
+
+    await request(app.getHttpServer())
+      .patch(`/api/v1/profiles/${profile.body.id}`)
+      .set('Authorization', `Bearer ${member}`)
+      .send({ name: 'Updated by member' })
+      .expect(403);
+
+    await request(app.getHttpServer())
+      .post(`/api/v1/profiles/${profile.body.id}/grants`)
+      .set('Authorization', `Bearer ${owner}`)
+      .send({ granteeUserId: 'member-user', scope: 'full' })
+      .expect(201);
+
+    const update = await request(app.getHttpServer())
+      .patch(`/api/v1/profiles/${profile.body.id}`)
+      .set('Authorization', `Bearer ${member}`)
+      .send({ name: 'Updated by member' })
+      .expect(200);
+
+    expect(update.body.name).toBe('Updated by member');
+  });
+
+  it('updates managedByUserId', async () => {
+    const owner = ownerToken();
+    const manager = fakeSupabase.signToken({
+      sub: 'manager-user',
+      email: 'manager@example.com',
+    });
+
+    const profile = await request(app.getHttpServer())
+      .post('/api/v1/profiles')
+      .set('Authorization', `Bearer ${owner}`)
+      .send({ name: 'Handoff Profile' })
+      .expect(201);
+
+    const updated = await request(app.getHttpServer())
+      .patch(`/api/v1/profiles/${profile.body.id}`)
+      .set('Authorization', `Bearer ${owner}`)
+      .send({ managedByUserId: 'manager-user' })
+      .expect(200);
+
+    expect(updated.body.managedByUserId).toBe('manager-user');
+
+    await request(app.getHttpServer())
+      .delete(`/api/v1/profiles/${profile.body.id}`)
+      .set('Authorization', `Bearer ${manager}`)
+      .expect(204);
+  });
+
   it('creates and accesses patient profiles and grants', async () => {
     const owner = ownerToken();
     const member = memberToken();
