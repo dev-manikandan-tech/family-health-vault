@@ -8,3 +8,4 @@ export * from './family';
 export * from './patient-profile';
 export * from './record-access-grant';
 export * from './visit';
+export * from './document';

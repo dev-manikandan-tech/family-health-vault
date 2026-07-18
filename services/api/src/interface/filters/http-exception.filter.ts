@@ -42,6 +42,9 @@ export class AuthExceptionFilter implements ExceptionFilter {
 
     let status = HttpStatus.BAD_REQUEST;
     switch (exception.code) {
+      case 'INVALID_UPLOAD':
+        status = HttpStatus.BAD_REQUEST;
+        break;
       case 'INVALID_CREDENTIALS':
       case 'INVALID_TOKEN':
       case 'TOKEN_EXPIRED':
@@ -61,6 +64,7 @@ export class AuthExceptionFilter implements ExceptionFilter {
       case 'USER_ALREADY_EXISTS':
       case 'ALREADY_MEMBER':
       case 'PENDING_INVITATION_EXISTS':
+      case 'DOCUMENT_NOT_READY':
         status = HttpStatus.CONFLICT;
         break;
       case 'RATE_LIMITED':
