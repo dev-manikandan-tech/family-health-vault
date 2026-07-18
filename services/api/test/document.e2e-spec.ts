@@ -2,16 +2,19 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
 import {
+  EXTRACTOR_PROVIDER,
   STORAGE_PROVIDER,
   SUPABASE_AUTH_CLIENT,
 } from '../src/domain/constants/injection-tokens';
 import { FakeSupabaseAuthClient } from './support/fake-supabase-auth.client';
 import { FakeStorageProvider } from './support/fake-storage.provider';
+import { FakeExtractorProvider } from '../src/infrastructure/ai/fake-extractor.provider';
 
 describe('DocumentController (e2e)', () => {
   let app: INestApplication;
   let fakeSupabase: FakeSupabaseAuthClient;
   let fakeStorage: FakeStorageProvider;
+  let fakeExtractor: FakeExtractorProvider;
 
   beforeAll(async () => {
     process.env.NODE_ENV = 'test';
@@ -25,6 +28,7 @@ describe('DocumentController (e2e)', () => {
 
     fakeSupabase = new FakeSupabaseAuthClient('test-secret-not-for-production');
     fakeStorage = new FakeStorageProvider();
+    fakeExtractor = new FakeExtractorProvider();
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
@@ -33,6 +37,8 @@ describe('DocumentController (e2e)', () => {
       .useValue(fakeSupabase)
       .overrideProvider(STORAGE_PROVIDER)
       .useValue(fakeStorage)
+      .overrideProvider(EXTRACTOR_PROVIDER)
+      .useValue(fakeExtractor)
       .compile();
 
     app = moduleFixture.createNestApplication();
@@ -119,6 +125,16 @@ describe('DocumentController (e2e)', () => {
 
     expect(get.body.status).toBe('ready');
     expect(get.body.extractedMetadata.fileSize).toBe(buffer.length);
+    expect(get.body.extractionStatus).toBe('extracted');
+    expect(get.body.extractedEntities.documentType).toBe('generic');
+
+    const extraction = await request(app.getHttpServer())
+      .get(`/api/v1/documents/${documentId}/extraction`)
+      .set('Authorization', `Bearer ${owner}`)
+      .expect(200);
+
+    expect(extraction.body.extractionStatus).toBe('extracted');
+    expect(extraction.body.extractedEntities.documentType).toBe('generic');
 
     const download = await request(app.getHttpServer())
       .get(`/api/v1/documents/${documentId}/download`)
@@ -177,5 +193,67 @@ describe('DocumentController (e2e)', () => {
     expect(confirmed.body.status).toBe('ready');
     expect(confirmed.body.thumbnailKey).toBeDefined();
     expect(confirmed.body.convertedKey).toBeDefined();
+  });
+
+  it('flags low-confidence extraction for review and allows correction', async () => {
+    const owner = tokenFor('doc-review-owner', 'review-owner@example.com');
+    const family = await createFamily(owner, 'Review Family');
+    const profile = await createProfile(owner, family.id, 'Review Patient');
+
+    fakeExtractor.setResult({
+      documentType: 'prescription',
+      confidence: 0.4,
+      entities: {
+        documentType: 'prescription',
+        confidence: 0.4,
+        doctorName: 'Dr. X',
+      },
+      rawText: 'low confidence extraction',
+    });
+
+    const presign = await request(app.getHttpServer())
+      .post(`/api/v1/profiles/${profile.id}/documents/presigned-upload`)
+      .set('Authorization', `Bearer ${owner}`)
+      .send({
+        originalName: 'prescription.pdf',
+        contentType: 'application/pdf',
+      })
+      .expect(201);
+
+    const buffer = Buffer.from('fake pdf content');
+    fakeStorage.setObjectMetadata(
+      presign.body.originalKey,
+      {
+        key: presign.body.originalKey,
+        size: buffer.length,
+        contentType: 'application/pdf',
+      },
+      buffer,
+    );
+
+    const confirmed = await request(app.getHttpServer())
+      .post(`/api/v1/documents/${presign.body.documentId}/confirm-upload`)
+      .set('Authorization', `Bearer ${owner}`)
+      .send({ size: buffer.length })
+      .expect(200);
+
+    expect(confirmed.body.extractionStatus).toBe('needs_review');
+
+    const corrected = await request(app.getHttpServer())
+      .patch(`/api/v1/documents/${presign.body.documentId}/extraction`)
+      .set('Authorization', `Bearer ${owner}`)
+      .send({
+        extractedEntities: {
+          documentType: 'prescription',
+          confidence: 1,
+          doctorName: 'Dr. Y',
+          medications: [{ name: 'Paracetamol', dosage: '500mg' }],
+        },
+        correctedBy: owner,
+      })
+      .expect(200);
+
+    expect(corrected.body.extractionStatus).toBe('corrected');
+    expect(corrected.body.extractedEntities.doctorName).toBe('Dr. Y');
   });
 });

@@ -63,6 +63,32 @@ export class DocumentOrmEntity {
   @Column({ type: 'simple-json', nullable: true, name: 'extracted_metadata' })
   extractedMetadata: Record<string, unknown>;
 
+  @Column({ type: 'simple-json', nullable: true, name: 'extracted_entities' })
+  extractedEntities?: Record<string, unknown>;
+
+  @Column({ type: 'real', nullable: true, name: 'extraction_confidence' })
+  extractionConfidence?: number;
+
+  @Column({
+    type: 'varchar',
+    nullable: true,
+    default: 'pending',
+    name: 'extraction_status',
+  })
+  extractionStatus?: string;
+
+  @Column({ type: 'text', nullable: true, name: 'extraction_error' })
+  extractionError?: string;
+
+  @Column({ nullable: true, name: 'extracted_at' })
+  extractedAt?: Date;
+
+  @Column({ type: 'varchar', nullable: true, name: 'corrected_by' })
+  correctedBy?: string;
+
+  @Column({ nullable: true, name: 'corrected_at' })
+  correctedAt?: Date;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 

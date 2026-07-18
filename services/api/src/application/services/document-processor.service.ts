@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { AuthError, AuthErrorCode } from '../../domain/errors/auth.error';
 import { Document } from '../../domain/entities/document.entity';
 import { IAuditService } from '../../domain/services/audit-service.interface';
@@ -8,9 +9,11 @@ import { IVirusScanner } from '../../domain/services/virus-scanner.interface';
 import { IImageConverter } from '../../domain/services/image-converter.interface';
 import { IMetadataExtractor } from '../../domain/services/metadata-extractor.interface';
 import { IDocumentProcessor } from '../../domain/services/document-processor.interface';
+import { IExtractorProvider } from '../../domain/services/extractor-provider.interface';
 import {
   AUDIT_SERVICE,
   DOCUMENT_REPOSITORY,
+  EXTRACTOR_PROVIDER,
   IMAGE_CONVERTER,
   METADATA_EXTRACTOR,
   STORAGE_PROVIDER,
@@ -30,8 +33,11 @@ export class DocumentProcessor implements IDocumentProcessor {
     private readonly imageConverter: IImageConverter,
     @Inject(METADATA_EXTRACTOR)
     private readonly metadataExtractor: IMetadataExtractor,
+    @Inject(EXTRACTOR_PROVIDER)
+    private readonly extractor: IExtractorProvider,
     @Inject(AUDIT_SERVICE)
     private readonly auditService: IAuditService,
+    private readonly configService: ConfigService,
   ) {}
 
   async process(documentId: string): Promise<void> {
@@ -78,6 +84,8 @@ export class DocumentProcessor implements IDocumentProcessor {
 
       let convertedKey: string | undefined;
       let thumbnailKey: string | undefined;
+      let extractionBuffer = buffer;
+      let extractionMimeType = document.contentType;
 
       if (this.imageConverter.supports(document.contentType)) {
         const converted = await this.imageConverter.convert(buffer, {
@@ -101,6 +109,9 @@ export class DocumentProcessor implements IDocumentProcessor {
           thumbnail,
           'image/jpeg',
         );
+
+        extractionBuffer = converted;
+        extractionMimeType = 'image/jpeg';
       }
 
       const metadata = await this.metadataExtractor.extract(
@@ -111,6 +122,58 @@ export class DocumentProcessor implements IDocumentProcessor {
 
       document.markReady(convertedKey, thumbnailKey, metadata);
       await this.documentRepository.save(document);
+
+      const threshold = parseFloat(
+        this.configService.get<string>('EXTRACTION_CONFIDENCE_THRESHOLD') ??
+          '0.7',
+      );
+
+      try {
+        const extraction = await this.extractor.extract(
+          document.id,
+          extractionBuffer,
+          extractionMimeType,
+        );
+
+        document.applyExtraction(
+          extraction.entities,
+          extraction.confidence,
+          threshold,
+        );
+        await this.documentRepository.save(document);
+
+        await this.auditService.log({
+          action:
+            document.extractionStatus === 'needs_review'
+              ? 'DOCUMENT_EXTRACTION_NEEDS_REVIEW'
+              : 'DOCUMENT_EXTRACTED',
+          resourceType: 'document',
+          resourceId: document.id,
+          actorId: 'system',
+          patientProfileId: document.patientProfileId,
+          familyId: document.familyId,
+          metadata: {
+            documentType: extraction.documentType,
+            confidence: extraction.confidence,
+          },
+        });
+      } catch (extractionError: unknown) {
+        const message =
+          extractionError instanceof Error
+            ? extractionError.message
+            : 'Extraction failed';
+        document.applyExtractionError(message);
+        await this.documentRepository.save(document);
+        await this.auditService.log({
+          action: 'DOCUMENT_EXTRACTION_FAILED',
+          resourceType: 'document',
+          resourceId: document.id,
+          actorId: 'system',
+          patientProfileId: document.patientProfileId,
+          familyId: document.familyId,
+          metadata: { error: message },
+        });
+      }
 
       await this.auditService.log({
         action: 'DOCUMENT_PROCESSED',

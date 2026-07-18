@@ -20,8 +20,13 @@ import { SynchronousDocumentQueue } from '../queue/synchronous-document.queue';
 import { BullMqDocumentQueue } from '../queue/bullmq-document.queue';
 import { BullMqDocumentWorker } from '../queue/bullmq-document.worker';
 import { isBullMqEnabled } from '../queue/queue-config';
+import { FakeExtractorProvider } from '../ai/fake-extractor.provider';
+import { GeminiExtractorProvider } from '../ai/gemini-extractor.provider';
+import { ExtractorCircuitBreaker } from '../ai/extractor-circuit-breaker.service';
+import { isGeminiEnabled } from '../ai/extractor-config';
 import {
   DOCUMENT_REPOSITORY,
+  EXTRACTOR_PROVIDER,
   STORAGE_PROVIDER,
   VIRUS_SCANNER,
   IMAGE_CONVERTER,
@@ -55,6 +60,13 @@ import {
     },
     BullMqDocumentWorker,
     { provide: DOCUMENT_PROCESSOR, useExisting: DocumentProcessor },
+    {
+      provide: EXTRACTOR_PROVIDER,
+      useClass: isGeminiEnabled()
+        ? GeminiExtractorProvider
+        : FakeExtractorProvider,
+    },
+    ExtractorCircuitBreaker,
   ],
   exports: [DocumentApplicationService, DocumentProcessor, DOCUMENT_REPOSITORY],
 })

@@ -65,6 +65,13 @@ export class TypeOrmDocumentRepository implements IDocumentRepository {
       processingError: entity.processingError ?? undefined,
       retryCount: entity.retryCount,
       extractedMetadata: entity.extractedMetadata ?? {},
+      extractedEntities: (entity.extractedEntities ?? undefined) as any,
+      extractionConfidence: entity.extractionConfidence ?? undefined,
+      extractionStatus: (entity.extractionStatus ?? 'pending') as any,
+      extractionError: entity.extractionError ?? undefined,
+      extractedAt: entity.extractedAt ?? undefined,
+      correctedBy: entity.correctedBy ?? undefined,
+      correctedAt: entity.correctedAt ?? undefined,
       createdAt: entity.createdAt,
       updatedAt: entity.updatedAt,
       deletedAt: entity.deletedAt ?? undefined,
@@ -90,6 +97,14 @@ export class TypeOrmDocumentRepository implements IDocumentRepository {
     entity.processingError = (document.processingError ?? null) as any;
     entity.retryCount = document.retryCount;
     entity.extractedMetadata = document.extractedMetadata ?? null;
+    entity.extractedEntities = (document.extractedEntities ?? null) as any;
+    entity.extractionConfidence = (document.extractionConfidence ??
+      null) as any;
+    entity.extractionStatus = document.extractionStatus ?? null;
+    entity.extractionError = (document.extractionError ?? null) as any;
+    entity.extractedAt = (document.extractedAt ?? null) as any;
+    entity.correctedBy = (document.correctedBy ?? null) as any;
+    entity.correctedAt = (document.correctedAt ?? null) as any;
     entity.createdAt = document.createdAt;
     entity.updatedAt = document.updatedAt;
     entity.deletedAt = (document.deletedAt ?? null) as any;
