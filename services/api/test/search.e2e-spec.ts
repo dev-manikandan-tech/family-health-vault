@@ -88,5 +88,10 @@ describe('SearchController (e2e)', () => {
       .expect(200);
 
     expect(autocomplete.body.length).toBeGreaterThanOrEqual(1);
+    expect(
+      (autocomplete.body as string[]).some((s) =>
+        s.toLowerCase().includes('aparna'),
+      ),
+    ).toBe(true);
   });
 });

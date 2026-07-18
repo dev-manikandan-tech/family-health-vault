@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Repository, LessThan } from 'typeorm';
+import { Repository } from 'typeorm';
 import { TimelineEvent } from '../../../domain/entities/timeline-event.entity';
 import {
   FindTimelineEventsOptions,
@@ -32,37 +32,41 @@ export class TypeOrmTimelineEventRepository implements ITimelineEventRepository 
     options: FindTimelineEventsOptions,
   ): Promise<FindTimelineEventsResult> {
     const limit = Math.min(options.limit, 100);
-    const query: Record<string, unknown> = {
-      patientProfileId: options.patientProfileId,
-    };
+
+    const qb = this.getRepo()
+      .createQueryBuilder('e')
+      .where('e.patient_profile_id = :profileId', {
+        profileId: options.patientProfileId,
+      })
+      .orderBy('e.event_date', 'DESC')
+      .addOrderBy('e.id', 'DESC')
+      .take(limit + 1);
 
     if (options.eventType) {
-      query.eventType = options.eventType;
+      qb.andWhere('e.event_type = :eventType', {
+        eventType: options.eventType,
+      });
     }
 
-    const where: any = { ...query };
+    if (options.fromDate) {
+      qb.andWhere('e.event_date >= :fromDate', { fromDate: options.fromDate });
+    }
 
-    if (options.fromDate || options.toDate) {
-      where.eventDate = {};
-      if (options.fromDate) {
-        where.eventDate.gte = options.fromDate;
-      }
-      if (options.toDate) {
-        where.eventDate.lte = options.toDate;
-      }
+    if (options.toDate) {
+      qb.andWhere('e.event_date <= :toDate', { toDate: options.toDate });
     }
 
     if (options.cursor) {
-      where.eventDate = where.eventDate ?? {};
-      where.eventDate.lt = options.cursor.eventDate;
-      where.id = LessThan(options.cursor.id);
+      qb.andWhere(
+        '(e.event_date < :cursorDate OR (e.event_date = :cursorDate AND e.id < :cursorId))',
+        {
+          cursorDate: options.cursor.eventDate,
+          cursorId: options.cursor.id,
+        },
+      );
     }
 
-    const entities = await this.getRepo().find({
-      where,
-      order: { eventDate: 'DESC', id: 'DESC' },
-      take: limit + 1,
-    });
+    const entities = await qb.getMany();
 
     const hasMore = entities.length > limit;
     const results = hasMore ? entities.slice(0, limit) : entities;
