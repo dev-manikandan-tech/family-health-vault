@@ -9,6 +9,7 @@ import { FamilyInvitationOrmEntity } from '../orm/entities/family-invitation.orm
 import { PatientProfileOrmEntity } from '../orm/entities/patient-profile.orm-entity';
 import { RecordAccessGrantOrmEntity } from '../orm/entities/record-access-grant.orm-entity';
 import { VisitOrmEntity } from '../orm/entities/visit.orm-entity';
+import { DocumentOrmEntity } from '../orm/entities/document.orm-entity';
 
 export const databaseConfig = registerAs(
   'database',
@@ -26,6 +27,7 @@ export const databaseConfig = registerAs(
         PatientProfileOrmEntity,
         RecordAccessGrantOrmEntity,
         VisitOrmEntity,
+        DocumentOrmEntity,
       ],
       synchronize: process.env.NODE_ENV !== 'production',
       dropSchema: process.env.NODE_ENV === 'test',
