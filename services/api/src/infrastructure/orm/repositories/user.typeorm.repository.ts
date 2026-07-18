@@ -62,10 +62,11 @@ export class TypeOrmUserRepository implements IUserRepository {
     entity.emailVerified = user.emailVerified;
     entity.phoneVerified = user.phoneVerified;
     entity.mfaEnabled = user.mfaEnabled;
-    entity.deletionRequestedAt = user.deletionRequestedAt ?? null;
+    // Cast null for soft-delete timestamps so TypeORM writes NULL on restore.
+    entity.deletionRequestedAt = (user.deletionRequestedAt ?? null) as any;
     entity.createdAt = user.createdAt;
     entity.updatedAt = user.updatedAt;
-    entity.deletedAt = user.deletedAt ?? null;
+    entity.deletedAt = (user.deletedAt ?? null) as any;
     return entity;
   }
 }

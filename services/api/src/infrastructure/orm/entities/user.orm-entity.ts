@@ -35,12 +35,8 @@ export class UserOrmEntity {
   @Column({ default: false, name: 'mfa_enabled' })
   mfaEnabled: boolean;
 
-  @Column({
-    type: 'datetime',
-    nullable: true,
-    name: 'deletion_requested_at',
-  })
-  deletionRequestedAt: Date | null;
+  @Column({ nullable: true, name: 'deletion_requested_at' })
+  deletionRequestedAt?: Date;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
@@ -48,10 +44,6 @@ export class UserOrmEntity {
   @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: Date;
 
-  @DeleteDateColumn({
-    type: 'datetime',
-    nullable: true,
-    name: 'deleted_at',
-  })
-  deletedAt: Date | null;
+  @DeleteDateColumn({ nullable: true, name: 'deleted_at' })
+  deletedAt?: Date;
 }

@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { Algorithm, verify, VerifyOptions } from 'jsonwebtoken';
 import { JwksClient, SigningKeyNotFoundError } from 'jwks-rsa';
+import WebSocket from 'ws';
 import {
   ISupabaseAuthClient,
   SupabaseTokenPayload,
@@ -36,6 +37,7 @@ export class SupabaseAuthClient implements ISupabaseAuthClient {
 
     this.adminClient = createClient(url, serviceRoleKey, {
       auth: { autoRefreshToken: false, persistSession: false },
+      realtime: { transport: WebSocket as any },
     });
 
     const jwksUri =
