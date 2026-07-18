@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { FamilyModule } from './family.module';
+import { TimelineModule } from './timeline.module';
 import { AuthModule } from './auth.module';
 import { DatabaseModule } from '../database/database.module';
 import { VisitOrmEntity } from '../orm/entities/visit.orm-entity';
@@ -16,6 +17,7 @@ import { VISIT_REPOSITORY } from '../../domain/constants/injection-tokens';
   imports: [
     AuthModule,
     FamilyModule,
+    TimelineModule,
     DatabaseModule,
     TypeOrmModule.forFeature([VisitOrmEntity]),
   ],

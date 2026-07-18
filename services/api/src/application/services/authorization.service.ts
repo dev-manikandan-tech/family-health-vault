@@ -86,4 +86,37 @@ export class AuthorizationService {
       throw new AuthError(AuthErrorCode.UNAUTHORIZED, 'Forbidden');
     }
   }
+
+  async getAccessibleProfileIds(userId: string): Promise<string[]> {
+    const [owned, managed, memberships, grants] = await Promise.all([
+      this.patientProfileRepository.findByUserId(userId),
+      this.patientProfileRepository.findByManagedByUserId(userId),
+      this.familyMemberRepository.findByUserId(userId),
+      this.grantRepository.findActiveByGranteeUserId(userId),
+    ]);
+
+    const familyIds = memberships
+      .filter((m) => !m.deletedAt)
+      .map((m) => m.familyId);
+    const familyProfiles = await Promise.all(
+      familyIds.map((fid) => this.patientProfileRepository.findByFamilyId(fid)),
+    );
+
+    const ids = new Set<string>();
+    for (const item of [
+      ...owned,
+      ...managed,
+      ...familyProfiles.flat(),
+      ...grants,
+    ]) {
+      const rawId =
+        'patientProfileId' in item
+          ? (item as any).patientProfileId
+          : (item as any).id;
+      const id = typeof rawId === 'string' ? rawId : String(rawId);
+      ids.add(id);
+    }
+
+    return [...ids];
+  }
 }

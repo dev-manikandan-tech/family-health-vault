@@ -10,6 +10,9 @@ import { PatientProfileOrmEntity } from '../orm/entities/patient-profile.orm-ent
 import { RecordAccessGrantOrmEntity } from '../orm/entities/record-access-grant.orm-entity';
 import { VisitOrmEntity } from '../orm/entities/visit.orm-entity';
 import { DocumentOrmEntity } from '../orm/entities/document.orm-entity';
+import { TimelineEventOrmEntity } from '../orm/entities/timeline-event.orm-entity';
+import { NotificationOrmEntity } from '../orm/entities/notification.orm-entity';
+import { OutboxEventOrmEntity } from '../orm/entities/outbox-event.orm-entity';
 
 export const databaseConfig = registerAs(
   'database',
@@ -28,6 +31,9 @@ export const databaseConfig = registerAs(
         RecordAccessGrantOrmEntity,
         VisitOrmEntity,
         DocumentOrmEntity,
+        TimelineEventOrmEntity,
+        NotificationOrmEntity,
+        OutboxEventOrmEntity,
       ],
       synchronize: process.env.NODE_ENV !== 'production',
       dropSchema: process.env.NODE_ENV === 'test',

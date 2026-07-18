@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from './auth.module';
 import { FamilyModule } from './family.module';
 import { VisitModule } from './visit.module';
+import { TimelineModule } from './timeline.module';
 import { DatabaseModule } from '../database/database.module';
 import { DocumentOrmEntity } from '../orm/entities/document.orm-entity';
 import {
@@ -40,6 +41,7 @@ import {
     AuthModule,
     FamilyModule,
     VisitModule,
+    TimelineModule,
     DatabaseModule,
     TypeOrmModule.forFeature([DocumentOrmEntity]),
   ],
