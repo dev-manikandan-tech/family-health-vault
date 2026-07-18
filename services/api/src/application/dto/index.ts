@@ -3,3 +3,7 @@ export * from './verify-phone-otp.dto';
 export * from './register-device.dto';
 export * from './user-profile.dto';
 export * from './device-session.dto';
+export * from './pagination.dto';
+export * from './family';
+export * from './patient-profile';
+export * from './record-access-grant';

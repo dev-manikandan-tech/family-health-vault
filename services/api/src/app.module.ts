@@ -2,6 +2,7 @@ import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD, APP_INTERCEPTOR, APP_FILTER } from '@nestjs/core';
 import { AuthModule } from './infrastructure/modules/auth.module';
+import { FamilyModule } from './infrastructure/modules/family.module';
 import { HealthModule } from './infrastructure/health/health.module';
 import { RequestIdMiddleware } from './infrastructure/middleware/request-id.middleware';
 import { RlsInterceptor } from './infrastructure/security/rls.interceptor';
@@ -12,7 +13,12 @@ import {
 } from './interface/filters/http-exception.filter';
 
 @Module({
-  imports: [ConfigModule.forRoot({ isGlobal: true }), AuthModule, HealthModule],
+  imports: [
+    ConfigModule.forRoot({ isGlobal: true }),
+    AuthModule,
+    FamilyModule,
+    HealthModule,
+  ],
   providers: [
     { provide: APP_GUARD, useClass: RateLimitGuard },
     { provide: APP_INTERCEPTOR, useClass: RlsInterceptor },
