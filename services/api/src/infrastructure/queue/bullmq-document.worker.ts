@@ -8,6 +8,7 @@ import { ConfigService } from '@nestjs/config';
 import { Worker, Job } from 'bullmq';
 import { IDocumentProcessor } from '../../domain/services/document-processor.interface';
 import { DOCUMENT_PROCESSOR } from '../../domain/constants/injection-tokens';
+import { isBullMqEnabled } from './queue-config';
 
 @Injectable()
 export class BullMqDocumentWorker implements OnModuleInit, OnModuleDestroy {
@@ -20,9 +21,7 @@ export class BullMqDocumentWorker implements OnModuleInit, OnModuleDestroy {
   ) {}
 
   onModuleInit(): void {
-    if (
-      this.configService.get<string>('DOCUMENT_QUEUE_PROVIDER') !== 'bullmq'
-    ) {
+    if (!isBullMqEnabled()) {
       return;
     }
     const redisUrl = this.configService.get<string>('REDIS_URL');

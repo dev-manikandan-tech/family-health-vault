@@ -112,7 +112,7 @@ export class DocumentApplicationService {
       documentId: saved.id,
       uploadUrl: presigned.url,
       originalKey: saved.originalKey!,
-      expiresInSeconds: 300,
+      expiresInSeconds: presigned.expiresInSeconds,
     };
   }
 
@@ -155,7 +155,7 @@ export class DocumentApplicationService {
     );
     if (!metadata || metadata.size !== dto.size) {
       throw new AuthError(
-        AuthErrorCode.INVALID_INVITATION,
+        AuthErrorCode.INVALID_UPLOAD,
         'Uploaded object not found or size mismatch',
       );
     }
@@ -235,6 +235,13 @@ export class DocumentApplicationService {
       documentId,
       'visits_only',
     );
+
+    if (document.status !== 'ready') {
+      throw new AuthError(
+        AuthErrorCode.DOCUMENT_NOT_READY,
+        'Document is not ready for download',
+      );
+    }
 
     const key =
       variant === 'converted'

@@ -17,6 +17,7 @@ export class FakeStorageProvider implements IStorageProvider {
     return {
       url: `https://fake-storage.test/upload/${key}`,
       key,
+      expiresInSeconds: 300,
     };
   }
 

@@ -19,6 +19,7 @@ import { BasicMetadataExtractor } from '../processing/basic-metadata-extractor';
 import { SynchronousDocumentQueue } from '../queue/synchronous-document.queue';
 import { BullMqDocumentQueue } from '../queue/bullmq-document.queue';
 import { BullMqDocumentWorker } from '../queue/bullmq-document.worker';
+import { isBullMqEnabled } from '../queue/queue-config';
 import {
   DOCUMENT_REPOSITORY,
   STORAGE_PROVIDER,
@@ -48,11 +49,9 @@ import {
     { provide: METADATA_EXTRACTOR, useClass: BasicMetadataExtractor },
     {
       provide: DOCUMENT_QUEUE,
-      useClass:
-        process.env.NODE_ENV === 'test' ||
-        process.env.DOCUMENT_QUEUE_PROVIDER === 'fake'
-          ? SynchronousDocumentQueue
-          : BullMqDocumentQueue,
+      useClass: isBullMqEnabled()
+        ? BullMqDocumentQueue
+        : SynchronousDocumentQueue,
     },
     BullMqDocumentWorker,
     { provide: DOCUMENT_PROCESSOR, useExisting: DocumentProcessor },

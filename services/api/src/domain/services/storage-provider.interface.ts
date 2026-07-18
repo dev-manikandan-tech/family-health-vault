@@ -1,6 +1,7 @@
 export interface PresignedUrlResult {
   url: string;
   key: string;
+  expiresInSeconds: number;
   fields?: Record<string, string>;
 }
 

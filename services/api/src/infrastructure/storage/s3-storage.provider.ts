@@ -65,10 +65,11 @@ export class S3StorageProvider implements IStorageProvider {
       ) as any,
       SSEKMSKeyId: this.configService.get<string>('STORAGE_SSE_KMS_KEY_ID'),
     });
+    const expiresIn = expiresInSeconds ?? this.defaultTtl;
     const url = await getSignedUrl(this.client, command, {
-      expiresIn: expiresInSeconds ?? this.defaultTtl,
+      expiresIn,
     });
-    return { url, key };
+    return { url, key, expiresInSeconds: expiresIn };
   }
 
   async getPresignedDownloadUrl(
